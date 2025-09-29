@@ -190,7 +190,7 @@ class SingleAgentEpisode:
         len_lookback_buffer: Union[int, str] = "auto",
         agent_id: Optional[AgentID] = None,
         module_id: Optional[ModuleID] = None,
-        multi_agent_episode_id: Optional[int] = None,
+        multi_agent_episode_id: Optional[Union[int, str]] = None,
     ):
         """Initializes a SingleAgentEpisode instance.
 

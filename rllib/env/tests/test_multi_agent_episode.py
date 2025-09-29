@@ -3464,6 +3464,82 @@ class TestMultiAgentEpisode(unittest.TestCase):
         # Ensure that this batch is empty.
         check(len(batch), 0)
 
+    def test_print_with_simple_agent_names(self):
+        obs_space = gym.spaces.Box(-1, 1, (5,), dtype=np.float32)
+        act_space = gym.spaces.Discrete(2)
+
+        episode = MultiAgentEpisode()
+        episode.add_env_reset(observations={"A": obs_space.sample()}, infos={})
+        episode.add_env_step(
+            observations={"B": obs_space.sample()},
+            actions={"A": act_space.sample()},
+            rewards={"A": 0.0},
+        )
+        episode.add_env_step(
+            observations={"B": obs_space.sample()},
+            actions={"B": act_space.sample()},
+            rewards={"A": 0.5, "B": 1.0},
+        )
+        episode.add_env_step(
+            observations={"A": obs_space.sample()},
+            actions={"B": act_space.sample()},
+            rewards={"A": 0.0, "B": 0.0},
+        )
+        episode.add_env_step(
+            observations={"A": obs_space.sample(), "B": obs_space.sample()},
+            actions={"A": act_space.sample()},
+            rewards={"A": 0.5, "B": 0.5},
+        )
+        expected_output = """ts 0  1  2  3  4
+    A  x        x  x
+    B     x  x     x"""
+        # episode.print()  # for debugging
+        assert episode.print(return_table=True) == expected_output
+
+    def test_print_with_long_agent_names(self):
+        obs_space = gym.spaces.Box(-1, 1, (5,), dtype=np.float32)
+        act_space = gym.spaces.Discrete(2)
+
+        episode = MultiAgentEpisode()
+        episode.add_env_reset(
+            observations={
+                "Agent_A": obs_space.sample(),
+                "Test_Agent": obs_space.sample(),
+            },
+            infos={},
+        )
+        episode.add_env_step(
+            observations={"Agent_A": obs_space.sample()},
+            actions={"Agent_A": act_space.sample(), "Test_Agent": act_space.sample()},
+            rewards={"Agent_A": 0.0, "Test_Agent": 1.0},
+        )
+        expected_output = """ts          0  1
+    Agent_A     x  x
+    Test_Agent  x"""
+        # episode.print()  # for debugging
+        assert episode.print(return_table=True) == expected_output
+
+    def test_print_with_long_episodes(self):
+        obs_space = gym.spaces.Box(-1, 1, (5,), dtype=np.float32)
+        act_space = gym.spaces.Discrete(2)
+
+        episode = MultiAgentEpisode()
+        episode.add_env_reset(
+            observations={"A": obs_space.sample(), "B": obs_space.sample()}, infos={}
+        )
+        for _ in range(12):
+            episode.add_env_step(
+                observations={"A": obs_space.sample(), "B": obs_space.sample()},
+                actions={"A": act_space.sample(), "B": act_space.sample()},
+                rewards={"A": 0.0, "B": 0.0},
+            )
+        expected_output = """ts 0  1  2  3  4  5  6  7  8  9  10  11  12
+    A  x  x  x  x  x  x  x  x  x  x  x   x   x
+    B  x  x  x  x  x  x  x  x  x  x  x   x   x"""
+
+        # episode.print()  # for debugging
+        assert episode.print(return_table=True) == expected_output
+
     def _create_simple_episode(self, obs, len_lookback_buffer=0):
         return MultiAgentEpisode(
             observations=obs,

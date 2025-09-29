@@ -376,7 +376,7 @@ class MultiAgentEpisode:
                 indicating, whether the environment has been terminated for them.
                 A special `__all__` key indicates that the episode is terminated for
                 all agent IDs.
-            terminateds: A dictionary mapping agent IDs to their `truncated` flags,
+            truncateds: A dictionary mapping agent IDs to their `truncated` flags,
                 indicating, whether the environment has been truncated for them.
                 A special `__all__` key indicates that the episode is `truncated` for
                 all agent IDs.
@@ -1676,7 +1676,7 @@ class MultiAgentEpisode:
             f"Rs={sa_eps_returns} id_={self.id_})"
         )
 
-    def print(self) -> None:
+    def print(self, return_table: bool = False) -> Optional[str]:
         """Prints this MultiAgentEpisode as a table of observations for the agents."""
 
         # Find the maximum timestep across all agents to determine the grid width.
@@ -1687,25 +1687,29 @@ class MultiAgentEpisode:
         header = (
             "ts"
             + (" " * longest_agent)
-            + "   ".join(str(i) for i in range(-lookback, max_ts - lookback))
+            + "  ".join(str(i) for i in range(-lookback, max_ts - lookback))
             + "\n"
         )
         # Construct each agent's row.
         rows = []
         for agent, inf_buffer in self.env_t_to_agent_t.items():
-            row = f"{agent}  " + (" " * (longest_agent - len(agent)))
-            for t in inf_buffer.data:
+            row = f"{agent} " + (" " * (longest_agent - len(agent)))
+            for i, t in enumerate(inf_buffer.data):
                 # Two spaces for alignment.
                 if t == "S":
-                    row += "    "
+                    row += "  " + " " * len(str(i))
                 # Mark the step with an x.
                 else:
-                    row += " x  "
+                    row += " x" + " " * len(str(i))
             # Remove trailing space for alignment.
             rows.append(row.rstrip())
 
         # Join all components into a final string
-        print(header + "\n".join(rows))
+        if return_table:
+            return header + "\n".join(rows)
+        else:
+            print(header + "\n".join(rows))
+            return None
 
     def get_state(self) -> Dict[str, Any]:
         """Returns the state of a multi-agent episode.
@@ -1822,7 +1826,7 @@ class MultiAgentEpisode:
 
         Args:
             include_hanging_rewards: Whether we should also consider
-                hanging rewards wehn calculating the overall return. Agents might
+                hanging rewards when calculating the overall return. Agents might
                 have received partial rewards, i.e. rewards without an
                 observation. These are stored in the "hanging" caches (begin and end)
                 for each agent and added up until the next observation is received by
