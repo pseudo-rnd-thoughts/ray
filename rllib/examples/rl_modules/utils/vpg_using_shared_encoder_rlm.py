@@ -64,10 +64,10 @@ class VPGMultiRLModuleWithSharedEncoder(MultiRLModule):
             from ray.rllib.core.rl_module.rl_module import RLModuleSpec
             from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 
-            from ray.rllib.examples.algorithms.classes.vpg import VPGConfig
-            from ray.rllib.examples.learners.classes.vpg_torch_learner_shared_optimizer import VPGTorchLearnerSharedOptimizer
-            from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
-            from ray.rllib.examples.rl_modules.classes.vpg_using_shared_encoder_rlm import (
+            from ray.rllib.examples.algorithms.utils.vpg import VPGConfig
+            from ray.rllib.examples.learners.utils.vpg_torch_learner_shared_optimizer import VPGTorchLearnerSharedOptimizer
+            from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
+            from ray.rllib.examples.rl_modules.utils.vpg_using_shared_encoder_rlm import (
                 SHARED_ENCODER_ID,
                 SharedEncoder,
                 VPGPolicyAfterSharedEncoder,

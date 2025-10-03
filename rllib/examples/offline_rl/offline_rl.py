@@ -105,7 +105,6 @@ config = (
 # and this would cause evaluation to lag one iter behind training.
 
 
-
 if __name__ == "__main__":
     # Check, whether we can learn from the given file in `num_iterations`
     # iterations, up to a reward of `min_reward`.

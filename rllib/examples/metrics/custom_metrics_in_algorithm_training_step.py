@@ -50,7 +50,7 @@ this script:
 Found logged `ratio_time_sampling_over_learning` in result dict.
 """
 from ray.rllib.algorithms import AlgorithmConfig
-from ray.rllib.examples.algorithms.classes.vpg import VPG, VPGConfig
+from ray.rllib.examples.algorithms.custom.utils.vpg import VPG, VPGConfig
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_SAMPLING_TIMER,
@@ -90,10 +90,7 @@ parser.set_defaults(default_timesteps=50000)
 
 args = parser.parse_args()
 
-base_config = (MyVPGWithExtraMetrics
-.get_default_config()
-.environment(
-    "CartPole-v1"))
+base_config = MyVPGWithExtraMetrics.get_default_config().environment("CartPole-v1")
 
 if __name__ == "__main__":
     results = run_rllib_example_script_experiment(base_config, args)

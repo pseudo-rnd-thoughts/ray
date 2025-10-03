@@ -30,20 +30,20 @@ from pathlib import Path
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module import RLModuleSpec, MultiRLModuleSpec
 from ray.rllib.env.multi_agent_env_runner import MultiAgentEnvRunner
-from ray.rllib.examples.envs.classes.multi_agent.footsies.fixed_rlmodules import (
+from ray.rllib.examples.envs.utils.multi_agent.footsies.fixed_rlmodules import (
     NoopFixedRLModule,
     BackFixedRLModule,
 )
-from ray.rllib.examples.envs.classes.multi_agent.footsies.footsies_env import (
+from ray.rllib.examples.envs.utils.multi_agent.footsies.footsies_env import (
     env_creator,
 )
-from ray.rllib.examples.envs.classes.multi_agent.footsies.utils import (
+from ray.rllib.examples.envs.utils.multi_agent.footsies.utils import (
     Matchup,
     Matchmaker,
     MetricsLoggerCallback,
     MixManagerCallback,
 )
-from ray.rllib.examples.rl_modules.classes.lstm_containing_rlm import (
+from ray.rllib.examples.rl_modules.utils.lstm_containing_rlm import (
     LSTMContainingRLModule,
 )
 from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED_LIFETIME

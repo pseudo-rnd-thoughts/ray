@@ -47,7 +47,7 @@ class IntrinsicCuriosityModel(TorchRLModule, SelfSupervisedLossAPI):
             import torch
 
             from ray.rllib.core import Columns
-            from ray.rllib.examples.rl_modules.classes.intrinsic_curiosity_model_rlm import (  # noqa
+            from ray.rllib.examples.rl_modules.utils.intrinsic_curiosity_model_rlm import (  # noqa
                 IntrinsicCuriosityModel
             )
 

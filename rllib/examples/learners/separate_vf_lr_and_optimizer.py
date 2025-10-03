@@ -66,7 +66,7 @@ With --lr-vf=0.0005 and --lr-policy=0.001
 
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.examples.learners.classes.separate_vf_lr_and_optimizer_learner import (
+from ray.rllib.examples.learners.utils.separate_vf_lr_and_optimizer_learner import (
     PPOTorchLearnerWithSeparateVfOptimizer,
 )
 from ray.rllib.utils.framework import try_import_torch

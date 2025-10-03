@@ -49,8 +49,8 @@ from ray.rllib.algorithms.bc.bc_catalog import BCCatalog
 from ray.rllib.algorithms.bc.torch.bc_torch_rl_module import BCTorchRLModule
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec, DefaultModelConfig
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
-from ray.rllib.examples.offline_rl.classes.image_offline_data import ImageOfflineData
-from ray.rllib.examples.offline_rl.classes.image_offline_prelearner import (
+from ray.rllib.examples.offline_rl.utils.image_offline_data import ImageOfflineData
+from ray.rllib.examples.offline_rl.utils.image_offline_prelearner import (
     ImageOfflinePreLearner,
 )
 

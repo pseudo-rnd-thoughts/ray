@@ -87,7 +87,7 @@ import time
 from ray import tune
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.callbacks.callbacks import RLlibCallback
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,

@@ -103,7 +103,7 @@ from ray.rllib.core.columns import Columns
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 from ray.rllib.core.rl_module.rl_module import RLModule
 from ray.rllib.env.single_agent_episode import SingleAgentEpisode
-from ray.rllib.examples.envs.classes.stateless_cartpole import StatelessCartPole
+from ray.rllib.examples.envs.utils.stateless_cartpole import StatelessCartPole
 from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,

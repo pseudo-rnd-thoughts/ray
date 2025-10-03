@@ -1,7 +1,7 @@
 import numpy as np
 
 import ray
-from ray.rllib.examples.envs.classes.simple_corridor import SimpleCorridor
+from ray.rllib.examples.envs.utils.simple_corridor import SimpleCorridor
 from ray.rllib.utils.framework import try_import_torch
 
 torch, _ = try_import_torch()

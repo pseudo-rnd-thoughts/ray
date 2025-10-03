@@ -21,7 +21,7 @@ import os
 import ray
 from ray import tune
 from ray.tune.result import TRAINING_ITERATION
-from ray.rllib.examples.envs.classes.parametric_actions_cartpole import (
+from ray.rllib.examples.envs.utils.parametric_actions_cartpole import (
     ParametricActionsCartPoleNoEmbeddings,
 )
 from ray.rllib.examples._old_api_stack.models.parametric_actions_model import (

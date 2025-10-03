@@ -58,7 +58,7 @@ Policy NOT using curiosity:
 [DOES NOT LEARN AT ALL]
 """
 from ray.rllib.connectors.env_to_module import MeanStdFilter
-from ray.rllib.examples.connectors.classes.euclidian_distance_based_curiosity import (
+from ray.rllib.examples.connectors.utils.euclidian_distance_based_curiosity import (
     EuclidianDistanceBasedCuriosity,
 )
 from ray.rllib.utils.test_utils import (

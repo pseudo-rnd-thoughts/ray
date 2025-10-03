@@ -55,7 +55,7 @@ Determinism works! ok
 """
 import ray
 from ray.rllib.core import DEFAULT_MODULE_ID
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EPISODE_RETURN_MEAN,

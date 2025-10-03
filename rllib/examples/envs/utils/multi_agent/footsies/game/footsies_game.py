@@ -4,9 +4,9 @@ import time
 import grpc
 import numpy as np
 
-import ray.rllib.examples.envs.classes.multi_agent.footsies.game.proto.footsies_service_pb2 as footsies_pb2
-import ray.rllib.examples.envs.classes.multi_agent.footsies.game.proto.footsies_service_pb2_grpc as footsies_pb2_grpc
-from ray.rllib.examples.envs.classes.multi_agent.footsies.game import constants
+import ray.rllib.examples.envs.utils.multi_agent.footsies.game.proto.footsies_service_pb2 as footsies_pb2
+import ray.rllib.examples.envs.utils.multi_agent.footsies.game.proto.footsies_service_pb2_grpc as footsies_pb2_grpc
+from ray.rllib.examples.envs.utils.multi_agent.footsies.game import constants
 
 logger = logging.getLogger(__name__)
 

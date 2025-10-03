@@ -10,7 +10,7 @@ from ray.rllib.algorithms.callbacks import RLlibCallback
 from ray.rllib.core.rl_module import RLModuleSpec
 from ray.rllib.env.env_runner import EnvRunner
 from ray.rllib.env.multi_agent_episode import MultiAgentEpisode
-from ray.rllib.examples.envs.classes.multi_agent.footsies.game.constants import (
+from ray.rllib.examples.envs.utils.multi_agent.footsies.game.constants import (
     FOOTSIES_ACTION_IDS,
 )
 from ray.rllib.utils.metrics import ENV_RUNNER_RESULTS

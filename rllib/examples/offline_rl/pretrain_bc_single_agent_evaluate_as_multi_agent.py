@@ -57,7 +57,7 @@ import gymnasium as gym
 
 from ray import tune
 from ray.rllib.algorithms.bc import BCConfig
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
 from ray.rllib.examples._old_api_stack.policy.random_policy import RandomPolicy
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.metrics import (
@@ -127,9 +127,7 @@ base_config = (
                 "random": PolicySpec(policy_class=RandomPolicy),
             },
             # Only control agent 0 with the main (trained) policy.
-            policy_mapping_fn=(
-                lambda aid, *a, **kw: "main" if aid == 0 else "random"
-            ),
+            policy_mapping_fn=(lambda aid, *a, **kw: "main" if aid == 0 else "random"),
             # Note that we do NOT have to specify the `policies_to_train` here,
             # b/c we are inside the evaluation config (no policy is trained during
             # evaluation). The fact that the BCConfig above is "only" setup
@@ -140,9 +138,7 @@ base_config = (
     )
 )
 
-policy_eval_returns = (
-    f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/policy_reward_mean/"
-)
+policy_eval_returns = f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/policy_reward_mean/"
 
 stop = {
     # Check for the "main" policy's episode return, not the combined one.

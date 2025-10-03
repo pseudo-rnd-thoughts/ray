@@ -79,17 +79,17 @@ from ray import tune
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.callbacks.callbacks import RLlibCallback
 from ray.rllib.connectors.env_to_module import FlattenObservations
-from ray.rllib.examples.learners.classes.intrinsic_curiosity_learners import (
+from ray.rllib.examples.learners.utils.intrinsic_curiosity_learners import (
     DQNTorchLearnerWithCuriosity,
     PPOTorchLearnerWithCuriosity,
 )
 from ray.rllib.core import DEFAULT_MODULE_ID
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-from ray.rllib.examples.learners.classes.intrinsic_curiosity_learners import (
+from ray.rllib.examples.learners.utils.intrinsic_curiosity_learners import (
     ICM_MODULE_ID,
 )
-from ray.rllib.examples.rl_modules.classes.intrinsic_curiosity_model_rlm import (
+from ray.rllib.examples.rl_modules.utils.intrinsic_curiosity_model_rlm import (
     IntrinsicCuriosityModel,
 )
 from ray.rllib.utils.metrics import (

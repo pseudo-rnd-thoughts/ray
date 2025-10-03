@@ -1,7 +1,7 @@
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.connectors.env_to_module import FlattenObservations
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.examples.envs.classes.cartpole_with_large_observation_space import (
+from ray.rllib.examples.envs.utils.cartpole_with_large_observation_space import (
     CartPoleWithLargeObservationSpace,
 )
 from ray.rllib.utils.test_utils import add_rllib_example_script_args

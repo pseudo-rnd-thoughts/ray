@@ -13,7 +13,7 @@ from ray.rllib.algorithms.ppo.torch.default_ppo_torch_rl_module import (
 )
 from ray.rllib.core.models.configs import MLPHeadConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-from ray.rllib.examples.envs.classes.random_env import RandomEnv
+from ray.rllib.examples.envs.utils.random_env import RandomEnv
 from ray.rllib.examples._old_api_stack.models.mobilenet_v2_encoder import (
     MobileNetV2EncoderConfig,
     MOBILENET_INPUT_SHAPE,

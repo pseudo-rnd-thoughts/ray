@@ -83,7 +83,7 @@ from ray.rllib.connectors.env_to_module.frame_stacking import FrameStackingEnvTo
 from ray.rllib.connectors.learner.frame_stacking import FrameStackingLearner
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 from ray.rllib.env.wrappers.atari_wrappers import wrap_atari_for_new_api_stack
-from ray.rllib.examples.envs.classes.multi_agent import make_multi_agent
+from ray.rllib.examples.envs.utils.multi_agent import make_multi_agent
 from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,

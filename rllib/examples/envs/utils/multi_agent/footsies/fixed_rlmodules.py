@@ -1,6 +1,6 @@
 import tree  # pip install dm_tree
 from ray.rllib.core.rl_module import RLModule
-from ray.rllib.examples.envs.classes.multi_agent.footsies.game import constants
+from ray.rllib.examples.envs.utils.multi_agent.footsies.game import constants
 from ray.rllib.policy import sample_batch
 from ray.rllib.utils.spaces.space_utils import batch as batch_func
 

@@ -19,7 +19,7 @@ from ray.rllib.examples._old_api_stack.models.mobilenet_v2_encoder import (
     MobileNetV2EncoderConfig,
     MOBILENET_INPUT_SHAPE,
 )
-from ray.rllib.examples.envs.classes.random_env import RandomEnv
+from ray.rllib.examples.envs.utils.random_env import RandomEnv
 
 
 # Define a PPO Catalog that we can use to inject our MobileNetV2 Encoder into RLlib's

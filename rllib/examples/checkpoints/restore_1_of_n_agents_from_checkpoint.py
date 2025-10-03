@@ -55,7 +55,7 @@ from ray.rllib.core import (
     COMPONENT_RL_MODULE,
 )
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentPendulum
+from ray.rllib.examples.envs.utils.multi_agent import MultiAgentPendulum
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EPISODE_RETURN_MEAN,

@@ -47,7 +47,7 @@ from ray.rllib.examples.multi_agent.utils import (
     SelfPlayLeagueBasedCallbackOldAPIStack,
 )
 from ray.rllib.examples._old_api_stack.policy.random_policy import RandomPolicy
-from ray.rllib.examples.rl_modules.classes.random_rlm import RandomRLModule
+from ray.rllib.examples.rl_modules.utils.random_rlm import RandomRLModule
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED_LIFETIME
 from ray.rllib.utils.test_utils import (
@@ -110,13 +110,16 @@ register_env(
     lambda _: OpenSpielEnv(pyspiel.load_game(args.env)),
 )
 
+
 def policy_mapping_fn(agent_id, episode, worker=None, **kwargs):
     # At first, only have main play against the random main exploiter.
     return "main" if episode.episode_id % 2 == agent_id else "main_exploiter_0"
 
+
 def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
     # At first, only have main play against the random main exploiter.
     return "main" if hash(episode.id_) % 2 == agent_id else "main_exploiter_0"
+
 
 def _get_multi_agent():
     names = {
@@ -161,6 +164,7 @@ def _get_multi_agent():
         spec = None
     return {"policies": policies, "spec": spec}
 
+
 config = (
     get_trainable_cls(args.algo)
     .get_default_config()
@@ -188,18 +192,14 @@ config = (
         # custom callback defined above (`LeagueBasedSelfPlayCallback`).
         policies=_get_multi_agent()["policies"],
         policy_mapping_fn=(
-            agent_to_module_mapping_fn
-            if not args.old_api_stack
-            else policy_mapping_fn
+            agent_to_module_mapping_fn if not args.old_api_stack else policy_mapping_fn
         ),
         # At first, only train main_0 (until good enough to win against
         # random).
         policies_to_train=["main"],
     )
     .rl_module(
-        rl_module_spec=MultiRLModuleSpec(
-            rl_module_specs=_get_multi_agent()["spec"]
-        ),
+        rl_module_spec=MultiRLModuleSpec(rl_module_specs=_get_multi_agent()["spec"]),
     )
 )
 

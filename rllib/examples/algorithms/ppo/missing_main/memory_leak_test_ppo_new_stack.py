@@ -1,5 +1,5 @@
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.examples.envs.classes.random_env import RandomLargeObsSpaceEnv
+from ray.rllib.examples.envs.utils.random_env import RandomLargeObsSpaceEnv
 
 
 config = (

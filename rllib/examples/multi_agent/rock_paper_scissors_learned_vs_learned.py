@@ -49,7 +49,6 @@ register_env(
 )
 
 
-
 args = parser.parse_args()
 
 assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"

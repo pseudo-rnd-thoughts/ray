@@ -43,12 +43,12 @@ import gymnasium as gym
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 
-from ray.rllib.examples.algorithms.classes.vpg import VPGConfig
-from ray.rllib.examples.learners.classes.vpg_torch_learner_shared_optimizer import (
+from ray.rllib.examples.algorithms.custom.utils.vpg_config import VPGConfig
+from ray.rllib.examples.learners.utils.vpg_torch_learner_shared_optimizer import (
     VPGTorchLearnerSharedOptimizer,
 )
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
-from ray.rllib.examples.rl_modules.classes.vpg_using_shared_encoder_rlm import (
+from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.rl_modules.utils.vpg_using_shared_encoder_rlm import (
     SHARED_ENCODER_ID,
     SharedEncoder,
     VPGPolicyAfterSharedEncoder,
@@ -77,9 +77,7 @@ args = parser.parse_args()
 assert args.algo == "VPG", "The shared encoder example is meant for VPG agents."
 assert args.num_agents == 2, "This example makes use of two agents."
 
-single_agent_env = gym.make(
-    "CartPole-v1"
-)  # To allow instantiation of shared encoder
+single_agent_env = gym.make("CartPole-v1")  # To allow instantiation of shared encoder
 
 EMBEDDING_DIM = args.encoder_emb_dim  # encoder output dim
 

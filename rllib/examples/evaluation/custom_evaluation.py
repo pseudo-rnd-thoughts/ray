@@ -69,7 +69,7 @@ from ray.tune.result import TRAINING_ITERATION
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.env.env_runner_group import EnvRunnerGroup
-from ray.rllib.examples.envs.classes.simple_corridor import SimpleCorridor
+from ray.rllib.examples.envs.utils.simple_corridor import SimpleCorridor
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EVALUATION_RESULTS,

@@ -67,8 +67,8 @@ from gymnasium.spaces import Box, Discrete
 
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-from ray.rllib.examples.envs.classes.action_mask_env import ActionMaskEnv
-from ray.rllib.examples.rl_modules.classes.action_masking_rlm import (
+from ray.rllib.examples.envs.utils.action_mask_env import ActionMaskEnv
+from ray.rllib.examples.rl_modules.utils.action_masking_rlm import (
     ActionMaskingTorchRLModule,
 )
 

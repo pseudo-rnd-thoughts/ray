@@ -56,7 +56,7 @@ Policy NOT using curiosity:
 """
 from ray.rllib.connectors.env_to_module import FlattenObservations
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.examples.connectors.classes.count_based_curiosity import (
+from ray.rllib.examples.connectors.utils.count_based_curiosity import (
     CountBasedCuriosity,
 )
 from ray.rllib.utils.test_utils import (

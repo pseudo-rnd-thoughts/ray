@@ -83,7 +83,7 @@ And if you are using the `--as-test` option, you should see a finel message:
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.core import DEFAULT_MODULE_ID
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,

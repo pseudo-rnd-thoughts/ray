@@ -5,7 +5,7 @@ from ray.rllib.connectors.env_to_module.frame_stacking import FrameStackingEnvTo
 from ray.rllib.connectors.learner.frame_stacking import FrameStackingLearner
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.env.wrappers.atari_wrappers import wrap_atari_for_new_api_stack
-from ray.rllib.examples.rl_modules.classes.tiny_atari_cnn_rlm import TinyAtariCNN
+from ray.rllib.examples.rl_modules.utils.tiny_atari_cnn_rlm import TinyAtariCNN
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EPISODE_RETURN_MEAN,

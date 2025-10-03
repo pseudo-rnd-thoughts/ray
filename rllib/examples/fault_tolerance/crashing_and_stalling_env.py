@@ -78,7 +78,7 @@ from gymnasium.wrappers import TimeLimit
 
 from ray import tune
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.examples.envs.classes.cartpole_crashing import (
+from ray.rllib.examples.envs.utils.cartpole_crashing import (
     CartPoleCrashing,
     MultiAgentCartPoleCrashing,
 )

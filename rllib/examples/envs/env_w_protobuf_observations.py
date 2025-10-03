@@ -44,10 +44,10 @@ You should see results similar to the following in your console output:
 |     17 |          39.9011 |                 513.29 |                    465 |
 +--------+------------------+------------------------+------------------------+
 """
-from ray.rllib.examples.connectors.classes.protobuf_cartpole_observation_decoder import (  # noqa
+from ray.rllib.examples.connectors.utils.protobuf_cartpole_observation_decoder import (  # noqa
     ProtobufCartPoleObservationDecoder,
 )
-from ray.rllib.examples.envs.classes.cartpole_with_protobuf_observation_space import (
+from ray.rllib.examples.envs.utils.cartpole_with_protobuf_observation_space import (
     CartPoleWithProtobufObservationSpace,
 )
 from ray.rllib.utils.test_utils import (

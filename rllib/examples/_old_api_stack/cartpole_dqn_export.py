@@ -4,7 +4,6 @@
 
 import numpy as np
 import os
-import ray
 
 import ray._common
 from ray.rllib.policy.policy import Policy

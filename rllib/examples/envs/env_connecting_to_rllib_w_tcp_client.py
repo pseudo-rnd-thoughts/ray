@@ -69,7 +69,7 @@ from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 from ray.rllib.env.external.env_runner_server_for_external_inference import (
     EnvRunnerServerForExternalInference,
 )
-from ray.rllib.examples.envs.classes.utils.dummy_external_client import (
+from ray.rllib.examples.envs.utils.utils.dummy_external_client import (
     _dummy_external_client,
 )
 from ray.rllib.utils.test_utils import (

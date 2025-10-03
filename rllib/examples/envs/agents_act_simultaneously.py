@@ -42,7 +42,7 @@ You should see results similar to the following in your console output:
 Note that b/c we are playing a zero-sum game, the overall return remains 0.0 at
 all times.
 """
-from ray.rllib.examples.envs.classes.multi_agent.rock_paper_scissors import (
+from ray.rllib.examples.envs.utils.multi_agent.rock_paper_scissors import (
     RockPaperScissors,
 )
 from ray.rllib.connectors.env_to_module.flatten_observations import FlattenObservations

@@ -1,6 +1,6 @@
 from ray.rllib.algorithms.impala import IMPALAConfig
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.examples.envs.classes.stateless_cartpole import StatelessCartPole
+from ray.rllib.examples.envs.utils.stateless_cartpole import StatelessCartPole
 from ray.rllib.utils.test_utils import add_rllib_example_script_args
 
 parser = add_rllib_example_script_args(

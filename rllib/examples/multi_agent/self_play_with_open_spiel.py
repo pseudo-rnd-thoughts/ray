@@ -29,7 +29,7 @@ from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.env.utils import try_import_pyspiel, try_import_open_spiel
 from ray.rllib.env.wrappers.open_spiel import OpenSpielEnv
-from ray.rllib.examples.rl_modules.classes.random_rlm import RandomRLModule
+from ray.rllib.examples.rl_modules.utils.random_rlm import RandomRLModule
 from ray.rllib.examples.multi_agent.utils import (
     ask_user_for_action,
     SelfPlayCallback,
@@ -95,17 +95,20 @@ args = parser.parse_args()
 
 register_env("open_spiel_env", lambda _: OpenSpielEnv(pyspiel.load_game(args.env)))
 
+
 def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
     # agent_id = [0|1] -> module depends on episode ID
     # This way, we make sure that both modules sometimes play agent0
     # (start player) and sometimes agent1 (player to move 2nd).
     return "main" if hash(episode.id_) % 2 == agent_id else "random"
 
+
 def policy_mapping_fn(agent_id, episode, worker, **kwargs):
     # e.g. episode ID = 10234
     # -> agent `0` -> main (b/c epsID % 2 == 0)
     # -> agent `1` -> random (b/c epsID % 2 == 1)
     return "main" if episode.episode_id % 2 == agent_id else "random"
+
 
 config = (
     get_trainable_cls(args.algo)
@@ -148,9 +151,7 @@ config = (
         # that "main" always plays against "random" (and not against
         # another "main").
         policy_mapping_fn=(
-            agent_to_module_mapping_fn
-            if not args.old_api_stack
-            else policy_mapping_fn
+            agent_to_module_mapping_fn if not args.old_api_stack else policy_mapping_fn
         ),
         # Always just train the "main" policy.
         policies_to_train=["main"],

@@ -6,7 +6,7 @@ import torch
 
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-from ray.rllib.examples.rl_modules.classes.modelv2_to_rlm import ModelV2ToRLModule
+from ray.rllib.examples.rl_modules.utils.modelv2_to_rlm import ModelV2ToRLModule
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EPISODE_RETURN_MEAN,

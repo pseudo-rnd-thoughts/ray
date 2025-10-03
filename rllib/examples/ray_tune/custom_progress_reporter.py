@@ -46,7 +46,7 @@ You should see something similar to the following in your console output:
 from ray import tune
 from ray.tune.result import TRAINING_ITERATION
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EPISODE_RETURN_MEAN,

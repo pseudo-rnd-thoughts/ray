@@ -74,7 +74,7 @@ training (`--flat` flag is NOT set) can actually learn with the command line opt
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.connectors.env_to_module.flatten_observations import FlattenObservations
-from ray.rllib.examples.envs.classes.six_room_env import (
+from ray.rllib.examples.envs.utils.six_room_env import (
     HierarchicalSixRoomEnv,
     SixRoomEnv,
 )
@@ -148,9 +148,7 @@ base_config = (
     .env_runners(
         # num_envs_per_env_runner=10,
         env_to_module_connector=(
-            lambda env, spaces, device: (
-                FlattenObservations(multi_agent=not args.flat)
-            )
+            lambda env, spaces, device: (FlattenObservations(multi_agent=not args.flat))
         ),
     )
     .training(

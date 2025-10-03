@@ -11,12 +11,12 @@ from pettingzoo.utils.env import (
 )
 from ray.rllib.env import EnvContext
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
-from ray.rllib.examples.envs.classes.multi_agent.footsies.encoder import FootsiesEncoder
-from ray.rllib.examples.envs.classes.multi_agent.footsies.game import constants
-from ray.rllib.examples.envs.classes.multi_agent.footsies.game.footsies_binary import (
+from ray.rllib.examples.envs.utils.multi_agent.footsies.encoder import FootsiesEncoder
+from ray.rllib.examples.envs.utils.multi_agent.footsies.game import constants
+from ray.rllib.examples.envs.utils.multi_agent.footsies.game.footsies_binary import (
     FootsiesBinary,
 )
-from ray.rllib.examples.envs.classes.multi_agent.footsies.game.footsies_game import (
+from ray.rllib.examples.envs.utils.multi_agent.footsies.game.footsies_game import (
     FootsiesGame,
 )
 
