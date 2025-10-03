@@ -55,7 +55,7 @@ class MultiAgentEpisodeReplayBuffer(EpisodeReplayBuffer):
         import gymnasium as gym
 
         from ray.rllib.env.multi_agent_episode import MultiAgentEpisode
-        from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
+        from ray.rllib.examples.envs.utils import MultiAgentCartPole
         from ray.rllib.utils.replay_buffers import MultiAgentEpisodeReplayBuffer
 
 

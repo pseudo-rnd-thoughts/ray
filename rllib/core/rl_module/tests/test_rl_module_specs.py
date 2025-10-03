@@ -8,13 +8,13 @@ from ray.rllib.core.rl_module.multi_rl_module import (
     MultiRLModule,
     MultiRLModuleSpec,
 )
-from ray.rllib.examples.rl_modules.classes.vpg_using_shared_encoder_rlm import (
+from ray.rllib.examples.rl_modules.utils.vpg_using_shared_encoder_rlm import (
     SHARED_ENCODER_ID,
     SharedEncoder,
     VPGPolicyAfterSharedEncoder,
     VPGMultiRLModuleWithSharedEncoder,
 )
-from ray.rllib.examples.rl_modules.classes.vpg_torch_rlm import VPGTorchRLModule
+from ray.rllib.examples.rl_modules.utils.vpg_torch_rlm import VPGTorchRLModule
 
 
 class TestRLModuleSpecs(unittest.TestCase):

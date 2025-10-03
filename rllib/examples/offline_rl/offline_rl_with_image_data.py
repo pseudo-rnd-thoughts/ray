@@ -50,13 +50,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import gymnasium as gym
 import numpy as np
 from PIL import Image
-from ray.rllib.algorithms.bc.torch.bc_torch_rl_module import BCTorchRLModule
 
 from ray import data
 from ray.actor import ActorHandle
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.bc import BCConfig
 from ray.rllib.algorithms.bc.bc_catalog import BCCatalog
+from ray.rllib.algorithms.bc.torch.bc_torch_rl_module import BCTorchRLModule
 from ray.rllib.core.learner.learner import Learner
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import DefaultModelConfig, RLModuleSpec
@@ -212,6 +212,7 @@ class ImageOfflinePreLearner(OfflinePreLearner):
             episodes.append(episode)
 
         return {"episodes": episodes}
+
 
 # Create an Algorithm configuration.
 # TODO: Make this an actually running/learning example with RLunplugged

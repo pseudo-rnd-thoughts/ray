@@ -64,18 +64,17 @@ With --lr-vf=0.0005 and --lr-policy=0.001
 +------------------+------------------------+---------------------+
 """
 
+from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
+from ray.rllib.core.learner.torch.torch_learner import TorchLearner
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
+from ray.rllib.utils.annotations import override
+from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,
 )
-
-from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
-from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
-from ray.rllib.core.learner.torch.torch_learner import TorchLearner
-from ray.rllib.utils.annotations import override
-from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.typing import ModuleID
 
 torch, _ = try_import_torch()

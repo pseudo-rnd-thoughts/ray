@@ -15,7 +15,7 @@ from ray.rllib.env.multi_agent_env import (
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.evaluation.tests.test_rollout_worker import MockPolicy
 from ray.rllib.examples._old_api_stack.policy.random_policy import RandomPolicy
-from ray.rllib.examples.envs.classes.mock_env import MockEnv, MockEnv2
+from ray.rllib.examples.envs.utils.mock_env import MockEnv, MockEnv2
 from ray.rllib.policy.sample_batch import (
     convert_ma_batch_to_sample_batch,
 )

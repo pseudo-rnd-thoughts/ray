@@ -72,15 +72,37 @@ Policy NOT using curiosity:
 [DOES NOT LEARN AT ALL]
 """
 from collections import defaultdict
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+import gymnasium as gym
 import numpy as np
+import torch
+import tree  # pip install dm_tree
 
 from ray import tune
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
+from ray.rllib.algorithms.dqn.torch.dqn_torch_learner import DQNTorchLearner
+from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
 from ray.rllib.callbacks.callbacks import RLlibCallback
+from ray.rllib.connectors.common.add_observations_from_episodes_to_batch import (
+    AddObservationsFromEpisodesToBatch,
+)
+from ray.rllib.connectors.common.numpy_to_tensor import NumpyToTensor
+from ray.rllib.connectors.connector_v2 import ConnectorV2
 from ray.rllib.connectors.env_to_module import FlattenObservations
+from ray.rllib.connectors.learner.add_next_observations_from_episodes_to_train_batch import (  # noqa
+    AddNextObservationsFromEpisodesToTrainBatch,
+)
+from ray.rllib.core import DEFAULT_MODULE_ID, Columns
+from ray.rllib.core.columns import Columns
+from ray.rllib.core.learner.torch.torch_learner import TorchLearner
+from ray.rllib.core.rl_module.apis import SelfSupervisedLossAPI
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
-from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.core.rl_module.rl_module import RLModule, RLModuleSpec
+from ray.rllib.core.rl_module.torch import TorchRLModule
+from ray.rllib.models.utils import get_activation_fn
+from ray.rllib.utils.annotations import override
+from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EPISODE_RETURN_MEAN,
@@ -90,47 +112,16 @@ from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,
 )
-
-from typing import Any, List, Optional
-
-import gymnasium as gym
-import torch
-
-from ray.rllib.algorithms.dqn.torch.dqn_torch_learner import DQNTorchLearner
-from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
-from ray.rllib.connectors.common.add_observations_from_episodes_to_batch import (
-    AddObservationsFromEpisodesToBatch,
-)
-from ray.rllib.connectors.common.numpy_to_tensor import NumpyToTensor
-from ray.rllib.connectors.connector_v2 import ConnectorV2
-from ray.rllib.connectors.learner.add_next_observations_from_episodes_to_train_batch import (  # noqa
-    AddNextObservationsFromEpisodesToTrainBatch,
-)
-from ray.rllib.core import DEFAULT_MODULE_ID, Columns
-from ray.rllib.core.learner.torch.torch_learner import TorchLearner
-from ray.rllib.core.rl_module.rl_module import RLModule
-from ray.rllib.utils.typing import EpisodeType
-
-ICM_MODULE_ID = "_intrinsic_curiosity_model"
-
-from typing import TYPE_CHECKING, Any, Dict
-
-import tree  # pip install dm_tree
-
-from ray.rllib.core.columns import Columns
-from ray.rllib.core.rl_module.apis import SelfSupervisedLossAPI
-from ray.rllib.core.rl_module.torch import TorchRLModule
-from ray.rllib.models.utils import get_activation_fn
-from ray.rllib.utils.annotations import override
-from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.torch_utils import one_hot
-from ray.rllib.utils.typing import ModuleID
+from ray.rllib.utils.typing import EpisodeType, ModuleID
 
 if TYPE_CHECKING:
     from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
     from ray.rllib.core.learner.torch.torch_learner import TorchLearner
 
 torch, nn = try_import_torch()
+
+ICM_MODULE_ID = "_intrinsic_curiosity_model"
 
 
 class IntrinsicCuriosityModel(TorchRLModule, SelfSupervisedLossAPI):
@@ -353,6 +344,7 @@ class IntrinsicCuriosityModel(TorchRLModule, SelfSupervisedLossAPI):
             "`IntrinsicCuriosityModel` should only be used for training! "
             "Only calls to `forward_train()` supported."
         )
+
 
 class DQNTorchLearnerWithCuriosity(DQNTorchLearner):
     def build(self) -> None:

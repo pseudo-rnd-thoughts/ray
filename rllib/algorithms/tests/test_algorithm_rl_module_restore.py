@@ -16,7 +16,7 @@ from ray.rllib.core.rl_module.multi_rl_module import (
     MultiRLModuleSpec,
     MultiRLModule,
 )
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils import MultiAgentCartPole
 from ray.rllib.utils.test_utils import check
 from ray.rllib.utils.numpy import convert_to_numpy
 

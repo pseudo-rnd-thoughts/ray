@@ -64,28 +64,25 @@ successfully:
 +------------------------+
 """
 
+from typing import Dict, Optional, Tuple, Union
+
+import gymnasium as gym
 import numpy as np
 from gymnasium.spaces import Box, Dict, Discrete
 
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-from ray.rllib.examples.envs.utils.random_env import RandomEnv
-from ray.rllib.utils.test_utils import (
-    add_rllib_example_script_args,
-    run_rllib_example_script_experiment,
-)
-
-from typing import Dict, Optional, Tuple, Union
-
-import gymnasium as gym
-
 from ray.rllib.algorithms.ppo.torch.ppo_torch_rl_module import PPOTorchRLModule
 from ray.rllib.core.columns import Columns
 from ray.rllib.core.rl_module.apis.value_function_api import ValueFunctionAPI
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.core.rl_module.rl_module import RLModule
+from ray.rllib.core.rl_module.rl_module import RLModule, RLModuleSpec
+from ray.rllib.examples.envs.utils.random_env import RandomEnv
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.framework import try_import_torch
+from ray.rllib.utils.test_utils import (
+    add_rllib_example_script_args,
+    run_rllib_example_script_experiment,
+)
 from ray.rllib.utils.torch_utils import FLOAT_MIN
 from ray.rllib.utils.typing import TensorType
 
@@ -324,6 +321,7 @@ class ActionMaskingTorchRLModule(ActionMaskingRLModule, PPOTorchRLModule):
                     "'observations': <observation_space>}"
                 )
             self._checked_observations = True
+
 
 parser = add_rllib_example_script_args(
     default_iters=10,

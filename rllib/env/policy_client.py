@@ -291,7 +291,7 @@ def _create_embedded_rollout_worker(kwargs, send_fn):
     # Generate a dummy ExternalEnv here using RandomEnv and the
     # given observation/action spaces.
     if config.env is None:
-        from ray.rllib.examples.envs.classes.random_env import (
+        from ray.rllib.examples.envs.utils.random_env import (
             RandomEnv,
             RandomMultiAgentEnv,
         )

@@ -14,8 +14,8 @@ from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.env.multi_agent_env_runner import MultiAgentEnvRunner
 from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
-from ray.rllib.examples.envs.classes.cartpole_crashing import CartPoleCrashing
-from ray.rllib.examples.envs.classes.random_env import RandomEnv
+from ray.rllib.examples.envs.utils.cartpole_crashing import CartPoleCrashing
+from ray.rllib.examples.envs.utils.random_env import RandomEnv
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EPISODE_RETURN_MEAN,

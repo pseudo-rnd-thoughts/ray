@@ -10,7 +10,7 @@ from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.env.env_runner import StepFailedRecreateEnvError
 from ray.rllib.env.single_agent_env_runner import SingleAgentEnvRunner
 from ray.rllib.env.utils import _gym_env_creator
-from ray.rllib.examples.envs.classes.simple_corridor import SimpleCorridor
+from ray.rllib.examples.envs.utils.simple_corridor import SimpleCorridor
 from ray.rllib.utils.test_utils import check
 
 

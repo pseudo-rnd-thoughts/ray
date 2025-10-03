@@ -68,23 +68,17 @@ With --regularizer-coeff=0.0 and --lr=0.01
 [HAS SIGNIFICANT PROBLEMS REACHING THE DESIRED RETURN]
 """
 
+from typing import Any, Dict
+
 from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.examples.learners.utils.custom_ppo_loss_fn_learner import (
-    PPOTorchLearnerWithWeightRegularizerLoss,
-)
+from ray.rllib.utils.annotations import override
 from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,
 )
-
-from typing import Any, Dict
-
-from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.algorithms.ppo.torch.ppo_torch_learner import PPOTorchLearner
-from ray.rllib.utils.annotations import override
-from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.typing import ModuleID, TensorType
 
 torch, _ = try_import_torch()

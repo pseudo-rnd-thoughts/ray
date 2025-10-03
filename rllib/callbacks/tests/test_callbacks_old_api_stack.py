@@ -4,7 +4,7 @@ import unittest
 import ray
 from ray.rllib.algorithms.callbacks import DefaultCallbacks, make_multi_callbacks
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.examples.envs.classes.random_env import RandomEnv
+from ray.rllib.examples.envs.utils.random_env import RandomEnv
 
 
 class EpisodeAndSampleCallbacks(DefaultCallbacks):

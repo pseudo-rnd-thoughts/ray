@@ -12,10 +12,10 @@ from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.env.tests.test_multi_agent_env import BasicMultiAgent
 from ray.rllib.evaluation.metrics import RolloutMetrics
+from ray.rllib.evaluation.tests.guess_the_number_game import GuessTheNumberGame
 from ray.rllib.examples._old_api_stack.policy.random_policy import RandomPolicy
-from ray.rllib.examples.envs.classes.debug_counter_env import DebugCounterEnv
-from ray.rllib.examples.envs.classes.multi_agent import GuessTheNumberGame
-from ray.rllib.examples.rl_modules.classes.random_rlm import RandomRLModule
+from ray.rllib.examples.envs.utils.debug_counter_env import DebugCounterEnv
+from ray.rllib.examples.rl_modules.utils.random_rlm import RandomRLModule
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.policy.sample_batch import convert_ma_batch_to_sample_batch
 from ray.rllib.utils.test_utils import check

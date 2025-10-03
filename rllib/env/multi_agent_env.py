@@ -365,7 +365,7 @@ def make_multi_agent(
         print(obs)
 
         # By env-maker callable:
-        from ray.rllib.examples.envs.classes.stateless_cartpole import StatelessCartPole
+        from ray.rllib.examples.envs.utils.stateless_cartpole import StatelessCartPole
         ma_stateless_cartpole_cls = make_multi_agent(
            lambda config: StatelessCartPole(config))
         # Create a 3 agent multi-agent stateless cartpole.

@@ -58,22 +58,20 @@ given other parameters:
 +------------------+------------------------+------------------------+
 """
 
+from typing import Any, Dict, Optional
+
 from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.core.columns import Columns
+from ray.rllib.core.distribution.torch.torch_distribution import TorchCategorical
+from ray.rllib.core.rl_module.apis import ValueFunctionAPI
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.core.rl_module.torch import TorchRLModule
+from ray.rllib.utils.annotations import override
+from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,
 )
-
-
-from typing import Any, Dict, Optional
-
-from ray.rllib.core.columns import Columns
-from ray.rllib.core.distribution.torch.torch_distribution import TorchCategorical
-from ray.rllib.core.rl_module.apis import ValueFunctionAPI
-from ray.rllib.core.rl_module.torch import TorchRLModule
-from ray.rllib.utils.annotations import override
-from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.typing import TensorType
 
 torch, nn = try_import_torch()
@@ -219,6 +217,7 @@ class CustomActionDistributionRLModule(TorchRLModule, ValueFunctionAPI):
         embeddings = self._encoder(batch[Columns.OBS])
         logits = self._policy_net(embeddings)
         return embeddings, logits
+
 
 parser = add_rllib_example_script_args(
     default_timesteps=200000,

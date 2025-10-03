@@ -20,7 +20,7 @@ class DefaultModelConfig:
         import gymnasium as gym
         import numpy as np
         from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-        from ray.rllib.examples.rl_modules.classes.tiny_atari_cnn_rlm import (
+        from ray.rllib.examples.rl_modules.utils.tiny_atari_cnn_rlm import (
             TinyAtariCNN
         )
 

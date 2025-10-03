@@ -16,14 +16,14 @@ from ray.rllib.evaluation.metrics import collect_metrics
 from ray.rllib.evaluation.postprocessing import compute_advantages
 from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.examples._old_api_stack.policy.random_policy import RandomPolicy
-from ray.rllib.examples.envs.classes.mock_env import (
+from ray.rllib.examples.envs.utils.mock_env import (
     MockEnv,
     MockEnv2,
     MockVectorEnv,
     VectorizedMockEnv,
 )
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
-from ray.rllib.examples.envs.classes.random_env import RandomEnv
+from ray.rllib.examples.envs.utils.random_env import RandomEnv
+from ray.rllib.examples.envs.utils import MultiAgentCartPole
 from ray.rllib.policy.policy import Policy, PolicySpec
 from ray.rllib.policy.sample_batch import (
     DEFAULT_POLICY_ID,

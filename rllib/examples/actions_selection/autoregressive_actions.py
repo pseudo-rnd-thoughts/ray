@@ -61,8 +61,7 @@ Meaning, most of the time, you would receive a reward better than -0.5, but wors
 +------------------------+------------------------+------------------------+
 """
 
-from typing import Any, Optional
-from typing import Dict
+from typing import Any, Dict, Optional
 
 import gymnasium as gym
 import numpy as np
@@ -75,8 +74,7 @@ from ray.rllib.core.distribution.torch.torch_distribution import (
     TorchMultiDistribution,
 )
 from ray.rllib.core.rl_module.apis.value_function_api import ValueFunctionAPI
-from ray.rllib.core.rl_module.rl_module import RLModule
-from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.core.rl_module.rl_module import RLModule, RLModuleSpec
 from ray.rllib.core.rl_module.torch.torch_rl_module import TorchRLModule
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.framework import try_import_torch
@@ -273,6 +271,7 @@ class AutoregressiveActionsRLM(TorchRLModule, ValueFunctionAPI):
             child_distribution_cls_struct=(TorchCategorical, TorchDiagGaussian),
             input_lens=(3, 2),
         )
+
 
 parser = add_rllib_example_script_args(
     default_iters=1000,

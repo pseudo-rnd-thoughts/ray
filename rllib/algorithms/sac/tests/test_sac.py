@@ -6,7 +6,7 @@ import unittest
 import ray
 from ray.rllib.algorithms import sac
 from ray.rllib.connectors.env_to_module.flatten_observations import FlattenObservations
-from ray.rllib.examples.envs.classes.random_env import RandomEnv
+from ray.rllib.examples.envs.utils.random_env import RandomEnv
 from ray.rllib.utils.framework import try_import_tf, try_import_torch
 from ray.rllib.utils.spaces.simplex import Simplex
 from ray.rllib.utils.test_utils import check_train_results_new_api_stack

@@ -1770,11 +1770,9 @@ def check_supported_spaces(
         check_bounds: Whether to check the bounds of the action space.
         frameworks: The frameworks to test the algorithm with.
         use_gpu: Whether to check support for training on a gpu.
-
-
     """
     # Do these imports here because otherwise we have circular imports.
-    from ray.rllib.examples.envs.classes.random_env import RandomEnv
+    from ray.rllib.examples.envs.utils.random_env import RandomEnv
     from ray.rllib.models.torch.complex_input_net import (
         ComplexInputNetwork as TorchComplexNet,
     )

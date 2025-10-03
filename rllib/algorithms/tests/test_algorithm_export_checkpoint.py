@@ -5,7 +5,7 @@ import unittest
 
 import ray
 import ray._common
-from ray.rllib.examples.envs.classes.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils import MultiAgentCartPole
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.rllib.utils.framework import try_import_torch
 from ray.tune.registry import get_trainable_cls
