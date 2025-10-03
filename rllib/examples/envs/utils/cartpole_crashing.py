@@ -1,9 +1,10 @@
 import logging
-from gymnasium.envs.classic_control import CartPoleEnv
-import numpy as np
 import time
 
-from ray.rllib.examples.envs.utils.multi_agent import make_multi_agent
+import numpy as np
+from gymnasium.envs.classic_control import CartPoleEnv
+
+from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.error import EnvError
 

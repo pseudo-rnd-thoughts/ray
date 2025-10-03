@@ -70,12 +70,11 @@ learning behavior on the CartPole-v1 environment:
 |                250.52 |                 415787 |                7428.98 |
 +-----------------------+------------------------+------------------------+
 """
-from ray.rllib.examples.algorithms.pg.vpg import VPGConfig
+from ray.rllib.examples.algorithms.custom.utils.vcp_config import VPGConfig
 from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,
 )
-
 
 parser = add_rllib_example_script_args(
     default_reward=250.0,

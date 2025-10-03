@@ -1,5 +1,6 @@
 import gymnasium as gym
 
+from ray import tune
 from ray.rllib.algorithms.impala import IMPALAConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.env.wrappers.atari_wrappers import wrap_atari_for_new_api_stack
@@ -12,7 +13,6 @@ from ray.rllib.utils.metrics import (
 from ray.rllib.utils.test_utils import add_rllib_example_script_args
 from ray.tune.registry import register_env
 from ray.tune.schedulers.pb2 import PB2
-from ray import tune
 
 parser = add_rllib_example_script_args()
 parser.set_defaults(env="ale_py:ALE/Pong-v5")
@@ -23,7 +23,7 @@ parser.add_argument(
     "3 CNN layers ([32, 4, 2, same], [64, 4, 2, same], [256, 11, 1, valid]) for the "
     "base features and then a CNN pi-head with an output of [num-actions, 1, 1] and "
     "a Linear(1) layer for the values. The actual RLModule class used can be found "
-    "here: ray.rllib.examples.rl_modules.classes.tiny_atari_cnn_rlm",
+    "here: ray.rllib.examples.rl_modules.utils.tiny_atari_cnn_rlm",
 )
 args = parser.parse_args()
 

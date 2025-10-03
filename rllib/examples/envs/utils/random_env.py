@@ -1,9 +1,10 @@
 import copy
-import gymnasium as gym
-from gymnasium.spaces import Discrete, Tuple
-import numpy as np
 
-from ray.rllib.examples.envs.utils.multi_agent import make_multi_agent
+import gymnasium as gym
+import numpy as np
+from gymnasium.spaces import Discrete, Tuple
+
+from ray.rllib.env.multi_agent_env import make_multi_agent
 
 
 class RandomEnv(gym.Env):

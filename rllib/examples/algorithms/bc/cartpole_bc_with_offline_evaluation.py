@@ -1,7 +1,6 @@
 import warnings
 from pathlib import Path
 
-from ray.tune.result import TRAINING_ITERATION
 from ray.rllib.algorithms.bc import BCConfig
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 from ray.rllib.utils.metrics import (
@@ -13,6 +12,7 @@ from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,
 )
+from ray.tune.result import TRAINING_ITERATION
 
 parser = add_rllib_example_script_args()
 
@@ -30,7 +30,7 @@ parser.add_argument(
     "--num-offline-eval-runners",
     type=int,
     default=2,
-    help=("The number of offline evaluation runners to be used in offline evaluation."),
+    help="The number of offline evaluation runners to be used in offline evaluation.",
 )
 parser.add_argument(
     "--num-gpus-per-offline-eval-runner",

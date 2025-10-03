@@ -1,14 +1,13 @@
 from ray.rllib.algorithms.dqn import DQNConfig
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
-from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils import MultiAgentCartPole
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EPISODE_RETURN_MEAN,
     NUM_ENV_STEPS_SAMPLED_LIFETIME,
 )
-from ray.tune.registry import register_env
-
 from ray.rllib.utils.test_utils import add_rllib_example_script_args
+from ray.tune.registry import register_env
 
 parser = add_rllib_example_script_args(
     default_timesteps=500000,

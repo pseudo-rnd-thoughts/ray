@@ -3,7 +3,6 @@ from ray.rllib.examples.rl_modules.utils.rock_paper_scissors_heuristic_rlm impor
     BeatLastHeuristicRLM,
 )
 
-
 __all__ = [
     "AlwaysSameHeuristicRLM",
     "BeatLastHeuristicRLM",

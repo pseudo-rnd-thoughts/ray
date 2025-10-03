@@ -79,18 +79,17 @@ the output looks like this:
 """
 import gymnasium as gym
 
+from ray import tune
 from ray.rllib.connectors.env_to_module.frame_stacking import FrameStackingEnvToModule
 from ray.rllib.connectors.learner.frame_stacking import FrameStackingLearner
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
+from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.env.wrappers.atari_wrappers import wrap_atari_for_new_api_stack
-from ray.rllib.examples.envs.utils.multi_agent import make_multi_agent
 from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,
 )
 from ray.tune.registry import get_trainable_cls
-
-from ray import tune
 
 # Read in common example script command line arguments.
 parser = add_rllib_example_script_args(

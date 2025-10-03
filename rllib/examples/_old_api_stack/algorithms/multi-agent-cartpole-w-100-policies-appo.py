@@ -2,14 +2,13 @@
 import numpy as np
 
 from ray.rllib.algorithms.appo import APPOConfig
-from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils import MultiAgentCartPole
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
     EVALUATION_RESULTS,
     NUM_ENV_STEPS_SAMPLED_LIFETIME,
 )
 from ray.tune.registry import register_env
-
 
 register_env("multi_cartpole", lambda _: MultiAgentCartPole({"num_agents": 2}))
 

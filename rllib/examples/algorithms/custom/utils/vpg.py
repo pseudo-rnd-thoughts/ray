@@ -1,5 +1,7 @@
 import tree  # pip install dm_tree
 
+from rllib.examples.algorithms.custom.utils.vcp_config import VPGConfig
+
 from ray.rllib.algorithms import Algorithm
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.metrics import (
@@ -11,7 +13,6 @@ from ray.rllib.utils.metrics import (
     SYNCH_WORKER_WEIGHTS_TIMER,
     TIMERS,
 )
-from rllib.examples.algorithms.custom.utils.vcp_config import VPGConfig
 
 
 class VPG(Algorithm):

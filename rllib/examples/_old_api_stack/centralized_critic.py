@@ -21,21 +21,22 @@ modifies the environment.
 """
 
 import argparse
-from gymnasium.spaces import Discrete
-import numpy as np
 import os
+
+import numpy as np
+from gymnasium.spaces import Discrete
+
+from rllib.examples.envs.utils.two_step_game import TwoStepGame
 
 import ray
 from ray import tune
-from ray.tune.result import TRAINING_ITERATION
 from ray.rllib.algorithms.ppo.ppo import PPO, PPOConfig
 from ray.rllib.algorithms.ppo.ppo_tf_policy import (
     PPOTF1Policy,
     PPOTF2Policy,
 )
 from ray.rllib.algorithms.ppo.ppo_torch_policy import PPOTorchPolicy
-from ray.rllib.evaluation.postprocessing import compute_advantages, Postprocessing
-from rllib.examples.envs.utils.multi_agent.two_step_game import TwoStepGame
+from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
 from ray.rllib.examples._old_api_stack.models.centralized_critic_models import (
     CentralizedCriticModel,
     TorchCentralizedCriticModel,
@@ -53,6 +54,7 @@ from ray.rllib.utils.numpy import convert_to_numpy
 from ray.rllib.utils.test_utils import check_learning_achieved
 from ray.rllib.utils.tf_utils import explained_variance, make_tf_callable
 from ray.rllib.utils.torch_utils import convert_to_torch_tensor
+from ray.tune.result import TRAINING_ITERATION
 
 tf1, tf, tfv = try_import_tf()
 torch, nn = try_import_torch()

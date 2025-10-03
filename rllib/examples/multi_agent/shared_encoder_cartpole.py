@@ -40,19 +40,19 @@ Without a shared encoder, a lower reward is typically achieved after training fo
 """
 
 import gymnasium as gym
-from ray.rllib.core.rl_module.rl_module import RLModuleSpec
-from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 
-from ray.rllib.examples.algorithms.custom.utils.vpg_config import VPGConfig
-from ray.rllib.examples.learners.utils.vpg_torch_learner_shared_optimizer import (
+from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
+from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.examples.algorithms.custom.utils.vcp_config import VPGConfig
+from ray.rllib.examples.algorithms.custom.utils.vpg_torch_learner_shared_optimizer import (
     VPGTorchLearnerSharedOptimizer,
 )
-from ray.rllib.examples.envs.utils.multi_agent import MultiAgentCartPole
+from ray.rllib.examples.envs.utils import MultiAgentCartPole
 from ray.rllib.examples.rl_modules.utils.vpg_using_shared_encoder_rlm import (
     SHARED_ENCODER_ID,
     SharedEncoder,
-    VPGPolicyAfterSharedEncoder,
     VPGMultiRLModuleWithSharedEncoder,
+    VPGPolicyAfterSharedEncoder,
     VPGPolicyNoSharedEncoder,
 )
 from ray.rllib.utils.test_utils import (

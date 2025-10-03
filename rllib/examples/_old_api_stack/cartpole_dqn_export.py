@@ -2,8 +2,9 @@
 
 # @OldAPIStack
 
-import numpy as np
 import os
+
+import numpy as np
 
 import ray._common
 from ray.rllib.policy.policy import Policy

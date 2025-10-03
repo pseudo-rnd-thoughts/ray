@@ -56,7 +56,7 @@ class VPGConfig(AlgorithmConfig):
     @override(AlgorithmConfig)
     def get_default_rl_module_spec(self):
         if self.framework_str == "torch":
-            from ray.rllib.examples.rl_modules.classes.vpg_torch_rlm import (
+            from ray.rllib.examples.rl_modules.utils.vpg_torch_rlm import (
                 VPGTorchRLModule,
             )
 
@@ -72,7 +72,7 @@ class VPGConfig(AlgorithmConfig):
     @override(AlgorithmConfig)
     def get_default_learner_class(self):
         if self.framework_str == "torch":
-            from ray.rllib.examples.learners.utils.vpg_torch_learner import (
+            from ray.rllib.examples.algorithms.custom.utils.vpg_torch_learner import (
                 VPGTorchLearner,
             )
 

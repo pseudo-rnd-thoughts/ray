@@ -1,16 +1,5 @@
 import sys
 
-from ray.rllib.examples._old_api_stack.self_play_callback_old_api_stack import (
-    SelfPlayCallbackOldAPIStack,
-)
-from ray.rllib.examples._old_api_stack.self_play_league_based_callback_old_api_stack import (
-    SelfPlayLeagueBasedCallbackOldAPIStack,
-)
-from ray.rllib.examples.multi_agent.utils.self_play_callback import SelfPlayCallback
-from ray.rllib.examples.multi_agent.utils.self_play_league_based_callback import (
-    SelfPlayLeagueBasedCallback,
-)
-
 
 def ask_user_for_action(time_step):
     """Asks the user for a valid action on the command line and returns it.
@@ -36,8 +25,4 @@ def ask_user_for_action(time_step):
 
 __all__ = [
     "ask_user_for_action",
-    "SelfPlayCallback",
-    "SelfPlayLeagueBasedCallback",
-    "SelfPlayCallbackOldAPIStack",
-    "SelfPlayLeagueBasedCallbackOldAPIStack",
 ]

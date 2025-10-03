@@ -1,10 +1,7 @@
-from gymnasium.spaces import Dict, Tuple, Box, Discrete, MultiDiscrete
+from gymnasium.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 
-from ray.tune.registry import register_env
 from ray.rllib.connectors.env_to_module import FlattenObservations
-from ray.rllib.examples.envs.utils.multi_agent import (
-    MultiAgentNestedSpaceRepeatAfterMeEnv,
-)
+from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.examples.envs.utils.nested_space_repeat_after_me_env import (
     NestedSpaceRepeatAfterMeEnv,
 )
@@ -12,8 +9,7 @@ from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
     run_rllib_example_script_experiment,
 )
-from ray.tune.registry import get_trainable_cls
-
+from ray.tune.registry import get_trainable_cls, register_env
 
 # Read in common example script command line arguments.
 parser = add_rllib_example_script_args(default_timesteps=200000, default_reward=-500.0)
@@ -24,6 +20,10 @@ args = parser.parse_args()
 def _env_to_module_pipeline(env, spaces, device):
     return FlattenObservations(multi_agent=args.num_agents > 0)
 
+
+MultiAgentNestedSpaceRepeatAfterMeEnv = make_multi_agent(
+    lambda config: NestedSpaceRepeatAfterMeEnv(config)
+)
 
 # Register our environment with tune.
 if args.num_agents > 0:

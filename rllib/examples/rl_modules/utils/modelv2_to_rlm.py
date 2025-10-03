@@ -2,9 +2,8 @@ import pathlib
 from typing import Any, Dict, Optional
 
 import tree
-from ray.rllib.core import Columns, DEFAULT_POLICY_ID
-from ray.rllib.core.rl_module.apis import ValueFunctionAPI
-from ray.rllib.core.rl_module.torch import TorchRLModule
+
+from ray.rllib.core import DEFAULT_POLICY_ID, Columns
 from ray.rllib.core.distribution.torch.torch_distribution import (
     TorchCategorical,
     TorchDiagGaussian,
@@ -12,6 +11,8 @@ from ray.rllib.core.distribution.torch.torch_distribution import (
     TorchMultiDistribution,
     TorchSquashedGaussian,
 )
+from ray.rllib.core.rl_module.apis import ValueFunctionAPI
+from ray.rllib.core.rl_module.torch import TorchRLModule
 from ray.rllib.models.torch.torch_action_dist import (
     TorchCategorical as OldTorchCategorical,
     TorchDiagGaussian as OldTorchDiagGaussian,
@@ -29,12 +30,12 @@ torch, _ = try_import_torch()
 class ModelV2ToRLModule(TorchRLModule, ValueFunctionAPI):
     """An RLModule containing a (old stack) ModelV2.
 
-    The `ModelV2` may be define either through
+    The `ModelV2` may be defined through either
     - an existing Policy checkpoint
     - an existing Algorithm checkpoint (and a policy ID or "default_policy")
     - or through an AlgorithmConfig object
 
-    The ModelV2 is created in the `setup` and contines to live through the lifetime
+    The ModelV2 is created in the `setup` and continues to live through the lifetime
     of the RLModule.
     """
 
