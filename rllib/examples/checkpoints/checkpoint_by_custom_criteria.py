@@ -127,20 +127,14 @@ if __name__ == "__main__":
 
     # Get the best checkpoints from the trial, based on different metrics.
     # Checkpoint with the lowest policy loss value:
-    if not args.old_api_stack:
-        policy_loss_key = f"{LEARNER_RESULTS}/{DEFAULT_MODULE_ID}/policy_loss"
-    else:
-        policy_loss_key = "info/learner/default_policy/learner_stats/policy_loss"
+    policy_loss_key = f"{LEARNER_RESULTS}/{DEFAULT_MODULE_ID}/policy_loss"
     best_result = results.get_best_result(metric=policy_loss_key, mode="min")
     ckpt = best_result.checkpoint
     lowest_policy_loss = best_result.metrics_dataframe[policy_loss_key].min()
     print(f"Checkpoint w/ lowest policy loss ({lowest_policy_loss}): {ckpt}")
 
     # Checkpoint with the highest value-function loss:
-    if not args.old_api_stack:
-        vf_loss_key = f"{LEARNER_RESULTS}/{DEFAULT_MODULE_ID}/vf_loss"
-    else:
-        vf_loss_key = "info/learner/default_policy/learner_stats/vf_loss"
+    vf_loss_key = f"{LEARNER_RESULTS}/{DEFAULT_MODULE_ID}/vf_loss"
     best_result = results.get_best_result(metric=vf_loss_key, mode="max")
     ckpt = best_result.checkpoint
     highest_value_fn_loss = best_result.metrics_dataframe[vf_loss_key].max()

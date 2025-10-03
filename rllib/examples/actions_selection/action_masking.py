@@ -68,7 +68,6 @@ from typing import Dict, Optional, Tuple, Union
 
 import gymnasium as gym
 import numpy as np
-from gymnasium.spaces import Box, Dict, Discrete
 
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.algorithms.ppo.torch.ppo_torch_rl_module import PPOTorchRLModule
@@ -95,11 +94,11 @@ class ActionMaskEnv(RandomEnv):
     def __init__(self, config):
         super().__init__(config)
         # Masking only works for Discrete actions.
-        assert isinstance(self.action_space, Discrete)
+        assert isinstance(self.action_space, gym.spaces.Discrete)
         # Add action_mask to observations.
-        self.observation_space = Dict(
+        self.observation_space = gym.spaces.Dict(
             {
-                "action_mask": Box(0.0, 1.0, shape=(self.action_space.n,)),
+                "action_mask": gym.spaces.Box(0.0, 1.0, shape=(self.action_space.n,)),
                 "observations": self.observation_space,
             }
         )
@@ -339,13 +338,13 @@ base_config = (
     .environment(
         env=ActionMaskEnv,
         env_config={
-            "action_space": Discrete(100),
+            "action_space": gym.spaces.Discrete(100),
             # This defines the 'original' observation space that is used in the
             # `RLModule`. The environment will wrap this space into a
             # `gym.spaces.Dict` together with an 'action_mask' that signals the
             # `RLModule` to adapt the action distribution inputs for the underlying
             # `DefaultPPORLModule`.
-            "observation_space": Box(-1.0, 1.0, (5,)),
+            "observation_space": gym.spaces.Box(-1.0, 1.0, (5,)),
         },
     )
     .rl_module(

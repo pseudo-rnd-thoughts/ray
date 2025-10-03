@@ -40,14 +40,11 @@ from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.env.utils import try_import_open_spiel, try_import_pyspiel
 from ray.rllib.env.wrappers.open_spiel import OpenSpielEnv
-from ray.rllib.examples._old_api_stack.policy.random_policy import RandomPolicy
-from ray.rllib.examples.multi_agent.utils import (
+from ray.rllib.examples.multi_agent.utils import ask_user_for_action
+from ray.rllib.examples.multi_agent.utils.self_play_league_based_callback import (
     SelfPlayLeagueBasedCallback,
-    SelfPlayLeagueBasedCallbackOldAPIStack,
-    ask_user_for_action,
 )
 from ray.rllib.examples.rl_modules.utils.random_rlm import RandomRLModule
-from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.metrics import NUM_ENV_STEPS_SAMPLED_LIFETIME
 from ray.rllib.utils.test_utils import (
     add_rllib_example_script_args,
@@ -133,34 +130,23 @@ def _get_multi_agent():
         "league_exploiter_0",
         "league_exploiter_1",
     }
-    if not args.old_api_stack:
-        policies = names
-        spec = {
-            mid: RLModuleSpec(
-                module_class=(
-                    RandomRLModule
-                    if mid in ["main_exploiter_0", "league_exploiter_0"]
-                    else None
-                ),
-                model_config=DefaultModelConfig(
-                    fcnet_hiddens=[1024, 1024],
-                    # fcnet_activation="tanh",
-                ),
-            )
-            for mid in names
-        }
-    else:
-        policies = {
-            mid: PolicySpec(
-                policy_class=(
-                    RandomPolicy
-                    if mid in ["main_exploiter_0", "league_exploiter_0"]
-                    else None
-                )
-            )
-            for mid in names
-        }
-        spec = None
+
+    policies = names
+    spec = {
+        mid: RLModuleSpec(
+            module_class=(
+                RandomRLModule
+                if mid in ["main_exploiter_0", "league_exploiter_0"]
+                else None
+            ),
+            model_config=DefaultModelConfig(
+                fcnet_hiddens=[1024, 1024],
+                # fcnet_activation="tanh",
+            ),
+        )
+        for mid in names
+    }
+
     return {"policies": policies, "spec": spec}
 
 
@@ -173,14 +159,12 @@ config = (
     # properly matching the different policies in the league with each other.
     .callbacks(
         functools.partial(
-            SelfPlayLeagueBasedCallback
-            if not args.old_api_stack
-            else SelfPlayLeagueBasedCallbackOldAPIStack,
+            SelfPlayLeagueBasedCallback,
             win_rate_threshold=args.win_rate_threshold,
         )
     )
     .env_runners(
-        num_envs_per_env_runner=1 if not args.old_api_stack else 5,
+        num_envs_per_env_runner=1,
     )
     .training(
         num_epochs=20,
@@ -190,9 +174,7 @@ config = (
         # to more policy snapshots. This is done in the
         # custom callback defined above (`LeagueBasedSelfPlayCallback`).
         policies=_get_multi_agent()["policies"],
-        policy_mapping_fn=(
-            agent_to_module_mapping_fn if not args.old_api_stack else policy_mapping_fn
-        ),
+        policy_mapping_fn=agent_to_module_mapping_fn,
         # At first, only train main_0 (until good enough to win against
         # random).
         policies_to_train=["main"],
@@ -231,8 +213,7 @@ if __name__ == "__main__":
                 raise ValueError("No last checkpoint found in results!")
             algo.restore(checkpoint)
 
-        if not args.old_api_stack:
-            rl_module = algo.get_module("main")
+        rl_module = algo.get_module("main")
 
         # Play from the command line against the trained agent
         # in an actual (non-RLlib-wrapped) open-spiel env.
@@ -248,14 +229,12 @@ if __name__ == "__main__":
                     action = ask_user_for_action(time_step)
                 else:
                     obs = np.array(time_step.observations["info_state"][player_id])
-                    if not args.old_api_stack:
-                        action = np.argmax(
-                            rl_module.forward_inference(
-                                {"obs": torch.from_numpy(obs).unsqueeze(0).float()}
-                            )["action_dist_inputs"][0].numpy()
-                        )
-                    else:
-                        action = algo.compute_single_action(obs, policy_id="main")
+                    action = np.argmax(
+                        rl_module.forward_inference(
+                            {"obs": torch.from_numpy(obs).unsqueeze(0).float()}
+                        )["action_dist_inputs"][0].numpy()
+                    )
+
                     # In case computer chooses an invalid action, pick a
                     # random one.
                     legal = time_step.observations["legal_actions"][player_id]

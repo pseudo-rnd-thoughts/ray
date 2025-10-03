@@ -76,7 +76,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import gymnasium as gym
 import numpy as np
-import torch
 import tree  # pip install dm_tree
 
 from ray import tune
@@ -93,7 +92,7 @@ from ray.rllib.connectors.env_to_module import FlattenObservations
 from ray.rllib.connectors.learner.add_next_observations_from_episodes_to_train_batch import (  # noqa
     AddNextObservationsFromEpisodesToTrainBatch,
 )
-from ray.rllib.core import DEFAULT_MODULE_ID, Columns
+from ray.rllib.core import DEFAULT_MODULE_ID
 from ray.rllib.core.columns import Columns
 from ray.rllib.core.learner.torch.torch_learner import TorchLearner
 from ray.rllib.core.rl_module.apis import SelfSupervisedLossAPI
