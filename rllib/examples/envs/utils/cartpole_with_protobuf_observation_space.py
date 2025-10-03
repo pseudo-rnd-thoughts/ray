@@ -1,6 +1,9 @@
 import gymnasium as gym
 from gymnasium.envs.classic_control import CartPoleEnv
 import numpy as np
+from ray.rllib.examples.envs.utils.utils.cartpole_observations_proto import (
+    CartPoleObservation,
+)
 
 
 class CartPoleWithProtobufObservationSpace(CartPoleEnv):

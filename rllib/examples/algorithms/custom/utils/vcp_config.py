@@ -2,6 +2,7 @@ from typing_extensions import Self
 
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig, NotProvided
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
+from ray.rllib.examples.algorithms.custom.utils.vpg import VPG
 from ray.rllib.utils.annotations import override
 
 
@@ -78,4 +79,3 @@ class VPGConfig(AlgorithmConfig):
             return VPGTorchLearner
         else:
             raise ValueError(f"Unsupported framework: {self.framework_str}")
-

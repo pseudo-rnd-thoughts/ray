@@ -172,7 +172,6 @@ class APPOWithSharedDataActor(APPO):
         return restored
 
 
-
 parser = add_rllib_example_script_args(
     default_reward=450.0,
     default_iters=200,
