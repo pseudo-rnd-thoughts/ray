@@ -49,44 +49,45 @@ register_env(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
 
-    assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
+args = parser.parse_args()
 
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("pettingzoo_rps")
-        .env_runners(
-            env_to_module_connector=(
-                lambda env, spaces, device: FlattenObservations(multi_agent=True)
-            ),
-        )
-        .multi_agent(
-            policies={"p0", "p1"},
-            # `player_0` uses `p0`, `player_1` uses `p1`.
-            policy_mapping_fn=lambda aid, episode: re.sub("^player_", "p", aid),
-        )
-        .training(
-            vf_loss_coeff=0.005,
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(
-                use_lstm=args.use_lstm,
-                # Use a simpler FCNet when we also have an LSTM.
-                fcnet_hiddens=[32] if args.use_lstm else [256, 256],
-                lstm_cell_size=256,
-                max_seq_len=15,
-                vf_share_layers=True,
-            ),
-            rl_module_spec=MultiRLModuleSpec(
-                rl_module_specs={
-                    "p0": RLModuleSpec(),
-                    "p1": RLModuleSpec(),
-                }
-            ),
-        )
+assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("pettingzoo_rps")
+    .env_runners(
+        env_to_module_connector=(
+            lambda env, spaces, device: FlattenObservations(multi_agent=True)
+        ),
     )
+    .multi_agent(
+        policies={"p0", "p1"},
+        # `player_0` uses `p0`, `player_1` uses `p1`.
+        policy_mapping_fn=lambda aid, episode: re.sub("^player_", "p", aid),
+    )
+    .training(
+        vf_loss_coeff=0.005,
+    )
+    .rl_module(
+        model_config=DefaultModelConfig(
+            use_lstm=args.use_lstm,
+            # Use a simpler FCNet when we also have an LSTM.
+            fcnet_hiddens=[32] if args.use_lstm else [256, 256],
+            lstm_cell_size=256,
+            max_seq_len=15,
+            vf_share_layers=True,
+        ),
+        rl_module_spec=MultiRLModuleSpec(
+            rl_module_specs={
+                "p0": RLModuleSpec(),
+                "p1": RLModuleSpec(),
+            }
+        ),
+    )
+)
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

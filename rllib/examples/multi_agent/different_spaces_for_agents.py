@@ -82,27 +82,27 @@ parser = add_rllib_example_script_args(
     default_iters=10, default_reward=80.0, default_timesteps=10000
 )
 
+args = parser.parse_args()
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(env=BasicMultiAgentMultiSpaces)
+    .training(train_batch_size=1024)
+    .multi_agent(
+        # Use a simple set of policy IDs. Spaces for the individual policies
+        # are inferred automatically using reverse lookup via the
+        # `policy_mapping_fn` and the env provided spaces for the different
+        # agents. Alternatively, you could use:
+        # policies: {main0: PolicySpec(...), main1: PolicySpec}
+        policies={"main0", "main1"},
+        # Simple mapping fn, mapping agent0 to main0 and agent1 to main1.
+        policy_mapping_fn=(lambda aid, episode, **kw: f"main{aid[-1]}"),
+        # Only train main0.
+        policies_to_train=["main0"],
+    )
+)
+
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(env=BasicMultiAgentMultiSpaces)
-        .training(train_batch_size=1024)
-        .multi_agent(
-            # Use a simple set of policy IDs. Spaces for the individual policies
-            # are inferred automatically using reverse lookup via the
-            # `policy_mapping_fn` and the env provided spaces for the different
-            # agents. Alternatively, you could use:
-            # policies: {main0: PolicySpec(...), main1: PolicySpec}
-            policies={"main0", "main1"},
-            # Simple mapping fn, mapping agent0 to main0 and agent1 to main1.
-            policy_mapping_fn=(lambda aid, episode, **kw: f"main{aid[-1]}"),
-            # Only train main0.
-            policies_to_train=["main0"],
-        )
-    )
-
     run_rllib_example_script_experiment(base_config, args)

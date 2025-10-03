@@ -31,5 +31,6 @@ __all__ = [
     "COMPONENT_RL_MODULE",
     "DEFAULT_AGENT_ID",
     "DEFAULT_MODULE_ID",
+    "ALL_MODULES",
     "DEFAULT_POLICY_ID",
 ]

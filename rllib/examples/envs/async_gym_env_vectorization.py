@@ -95,37 +95,38 @@ class SlowEnv(gym.ObservationWrapper):
         return observation
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    if args.no_tune and args.vectorize_mode == "BOTH":
-        raise ValueError(
-            "Can't run this script with both --no-tune and --vectorize-mode=BOTH!"
-        )
-
-    # Wrap the env with the slowness wrapper.
-    def _env_creator(cfg):
-        return SlowEnv(gym.make(args.env, **cfg))
-
-    tune.register_env("slow-env", _env_creator)
-
-    if args.vectorize_mode == "BOTH" and args.no_tune:
-        raise ValueError(
-            "`--vectorize-mode=BOTH` and `--no-tune` not allowed in combination!"
-        )
-
-    base_config = (
-        PPOConfig()
-        .environment("slow-env")
-        .env_runners(
-            gym_env_vectorize_mode=(
-                tune.grid_search(["SYNC", "ASYNC"])
-                if args.vectorize_mode == "BOTH"
-                else args.vectorize_mode
-            ),
-        )
+if args.no_tune and args.vectorize_mode == "BOTH":
+    raise ValueError(
+        "Can't run this script with both --no-tune and --vectorize-mode=BOTH!"
     )
 
+# Wrap the env with the slowness wrapper.
+def _env_creator(cfg):
+    return SlowEnv(gym.make(args.env, **cfg))
+
+
+tune.register_env("slow-env", _env_creator)
+
+if args.vectorize_mode == "BOTH" and args.no_tune:
+    raise ValueError(
+        "`--vectorize-mode=BOTH` and `--no-tune` not allowed in combination!"
+    )
+
+base_config = (
+    PPOConfig()
+    .environment("slow-env")
+    .env_runners(
+        gym_env_vectorize_mode=(
+            tune.grid_search(["SYNC", "ASYNC"])
+            if args.vectorize_mode == "BOTH"
+            else args.vectorize_mode
+        ),
+    )
+)
+
+if __name__ == "__main__":
     results = run_rllib_example_script_experiment(base_config, args)
 
     # Compare the throughputs and assert that ASYNC is much faster than SYNC.

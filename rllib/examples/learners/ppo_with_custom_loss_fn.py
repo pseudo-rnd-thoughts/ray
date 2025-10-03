@@ -101,34 +101,34 @@ parser.add_argument(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    assert args.algo == "PPO", "Must set --algo=PPO when running this script!"
+assert args.algo == "PPO", "Must set --algo=PPO when running this script!"
 
-    base_config = (
-        PPOConfig()
-        .environment("CartPole-v1")
-        .training(
-            # This is the most important setting in this script: We point our PPO
-            # algorithm to use the custom Learner (instead of the default
-            # PPOTorchLearner).
-            learner_class=PPOTorchLearnerWithWeightRegularizerLoss,
-            # We use this simple method here to inject a new setting that our
-            # custom Learner class uses in its loss function. This is convenient
-            # and avoids having to subclass `PPOConfig` only to add a few new settings
-            # to it. Within our Learner, we can access this new setting through:
-            # `self.config.learner_config_dict['regularizer_coeff']`
-            learner_config_dict={"regularizer_coeff": args.regularizer_coeff},
-            # Some settings to make this example learn better.
-            num_epochs=6,
-            vf_loss_coeff=0.01,
-            # The learning rate, settable through the command line `--lr` arg.
-            lr=args.lr,
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(vf_share_layers=True),
-        )
+base_config = (
+    PPOConfig()
+    .environment("CartPole-v1")
+    .training(
+        # This is the most important setting in this script: We point our PPO
+        # algorithm to use the custom Learner (instead of the default
+        # PPOTorchLearner).
+        learner_class=PPOTorchLearnerWithWeightRegularizerLoss,
+        # We use this simple method here to inject a new setting that our
+        # custom Learner class uses in its loss function. This is convenient
+        # and avoids having to subclass `PPOConfig` only to add a few new settings
+        # to it. Within our Learner, we can access this new setting through:
+        # `self.config.learner_config_dict['regularizer_coeff']`
+        learner_config_dict={"regularizer_coeff": args.regularizer_coeff},
+        # Some settings to make this example learn better.
+        num_epochs=6,
+        vf_loss_coeff=0.01,
+        # The learning rate, settable through the command line `--lr` arg.
+        lr=args.lr,
     )
+    .rl_module(
+        model_config=DefaultModelConfig(vf_share_layers=True),
+    )
+)
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

@@ -78,31 +78,24 @@ parser = add_rllib_example_script_args(
     default_timesteps=2000000,
     default_reward=-0.45,
 )
+args = parser.parse_args()
+
+config = (
+    PPOConfig()
+    .environment(CorrelatedActionsEnv)
+    .training(
+        train_batch_size_per_learner=2000,
+        num_epochs=12,
+        minibatch_size=256,
+        entropy_coeff=0.005,
+        lr=0.0003,
+    )
+    # Specify the RLModule class to be used.
+    .rl_module(
+        rl_module_spec=RLModuleSpec(module_class=AutoregressiveActionsRLM),
+    )
+)
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    if args.algo != "PPO":
-        raise ValueError(
-            "This example script only runs with PPO! Set --algo=PPO on the command "
-            "line."
-        )
-
-    base_config = (
-        PPOConfig()
-        .environment(CorrelatedActionsEnv)
-        .training(
-            train_batch_size_per_learner=2000,
-            num_epochs=12,
-            minibatch_size=256,
-            entropy_coeff=0.005,
-            lr=0.0003,
-        )
-        # Specify the RLModule class to be used.
-        .rl_module(
-            rl_module_spec=RLModuleSpec(module_class=AutoregressiveActionsRLM),
-        )
-    )
-
-    run_rllib_example_script_experiment(base_config, args)
+    run_rllib_example_script_experiment(config, args)

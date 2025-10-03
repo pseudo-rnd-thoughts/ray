@@ -89,38 +89,37 @@ parser.add_argument(
     help="Whether to NOT use count-based curiosity.",
 )
 
+args = parser.parse_args()
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("MountainCar-v0")
+    .env_runners(
+        env_to_module_connector=lambda env, spaces, device: MeanStdFilter(),
+        num_envs_per_env_runner=5,
+    )
+    .training(
+        # The main code in this example: We add the
+        # `EuclidianDistanceBasedCuriosity` connector piece to our Learner connector
+        # pipeline. This pipeline is fed with collected episodes (either directly
+        # from the EnvRunners in on-policy fashion or from a replay buffer) and
+        # converts these episodes into the final train batch. The added piece
+        # computes intrinsic rewards based on simple observation counts and add them
+        # to the "main" (extrinsic) rewards.
+        learner_connector=(
+            None
+            if args.no_curiosity
+            else lambda *ags, **kw: EuclidianDistanceBasedCuriosity()
+        ),
+        # train_batch_size_per_learner=512,
+        grad_clip=20.0,
+        entropy_coeff=0.003,
+        gamma=0.99,
+        lr=0.0002,
+        lambda_=0.98,
+    )
+)
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("MountainCar-v0")
-        .env_runners(
-            env_to_module_connector=lambda env, spaces, device: MeanStdFilter(),
-            num_envs_per_env_runner=5,
-        )
-        .training(
-            # The main code in this example: We add the
-            # `EuclidianDistanceBasedCuriosity` connector piece to our Learner connector
-            # pipeline. This pipeline is fed with collected episodes (either directly
-            # from the EnvRunners in on-policy fashion or from a replay buffer) and
-            # converts these episodes into the final train batch. The added piece
-            # computes intrinsic rewards based on simple observation counts and add them
-            # to the "main" (extrinsic) rewards.
-            learner_connector=(
-                None
-                if args.no_curiosity
-                else lambda *ags, **kw: EuclidianDistanceBasedCuriosity()
-            ),
-            # train_batch_size_per_learner=512,
-            grad_clip=20.0,
-            entropy_coeff=0.003,
-            gamma=0.99,
-            lr=0.0002,
-            lambda_=0.98,
-        )
-    )
-
     run_rllib_example_script_experiment(base_config, args)

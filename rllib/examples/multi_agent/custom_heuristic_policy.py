@@ -61,40 +61,40 @@ parser.set_defaults(
 )
 
 
+args = parser.parse_args()
+
+assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
+
+# Simple environment with n independent cartpole entities.
+register_env(
+    "multi_agent_cartpole",
+    lambda _: MultiAgentCartPole({"num_agents": args.num_agents}),
+)
+
+base_config = (
+    PPOConfig()
+    .environment("multi_agent_cartpole")
+    .multi_agent(
+        policies={"learnable_policy", "random"},
+        # Map to either random behavior or PPO learning behavior based on
+        # the agent's ID.
+        policy_mapping_fn=lambda agent_id, *args, **kwargs: [
+            "learnable_policy",
+            "random",
+        ][agent_id % 2],
+        # We need to specify this here, b/c the `forward_train` method of
+        # `RandomRLModule` (ModuleID="random") throws a not-implemented error.
+        policies_to_train=["learnable_policy"],
+    )
+    .rl_module(
+        rl_module_spec=MultiRLModuleSpec(
+            rl_module_specs={
+                "learnable_policy": RLModuleSpec(),
+                "random": RLModuleSpec(module_class=RandomRLModule),
+            }
+        ),
+    )
+)
+
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
-
-    # Simple environment with n independent cartpole entities.
-    register_env(
-        "multi_agent_cartpole",
-        lambda _: MultiAgentCartPole({"num_agents": args.num_agents}),
-    )
-
-    base_config = (
-        PPOConfig()
-        .environment("multi_agent_cartpole")
-        .multi_agent(
-            policies={"learnable_policy", "random"},
-            # Map to either random behavior or PPO learning behavior based on
-            # the agent's ID.
-            policy_mapping_fn=lambda agent_id, *args, **kwargs: [
-                "learnable_policy",
-                "random",
-            ][agent_id % 2],
-            # We need to specify this here, b/c the `forward_train` method of
-            # `RandomRLModule` (ModuleID="random") throws a not-implemented error.
-            policies_to_train=["learnable_policy"],
-        )
-        .rl_module(
-            rl_module_spec=MultiRLModuleSpec(
-                rl_module_specs={
-                    "learnable_policy": RLModuleSpec(),
-                    "random": RLModuleSpec(module_class=RandomRLModule),
-                }
-            ),
-        )
-    )
-
     run_rllib_example_script_experiment(base_config, args)

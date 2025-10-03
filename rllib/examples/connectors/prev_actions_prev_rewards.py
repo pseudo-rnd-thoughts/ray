@@ -102,62 +102,61 @@ parser = add_rllib_example_script_args(
 parser.add_argument("--n-prev-rewards", type=int, default=1)
 parser.add_argument("--n-prev-actions", type=int, default=1)
 
+args = parser.parse_args()
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+# Define our custom connector pipelines.
+def _env_to_module(env, spaces, device):
+    # Create the env-to-module connector pipeline.
+    return [
+        PrevActionsPrevRewards(
+            multi_agent=args.num_agents > 0,
+            n_prev_rewards=args.n_prev_rewards,
+            n_prev_actions=args.n_prev_actions,
+        ),
+        FlattenObservations(multi_agent=args.num_agents > 0),
+    ]
 
-    # Define our custom connector pipelines.
-    def _env_to_module(env, spaces, device):
-        # Create the env-to-module connector pipeline.
-        return [
-            PrevActionsPrevRewards(
-                multi_agent=args.num_agents > 0,
-                n_prev_rewards=args.n_prev_rewards,
-                n_prev_actions=args.n_prev_actions,
-            ),
-            FlattenObservations(multi_agent=args.num_agents > 0),
-        ]
 
-    # Register our environment with tune.
-    if args.num_agents > 0:
-        register_env(
-            "env",
-            lambda _: MultiAgentStatelessCartPole(
-                config={"num_agents": args.num_agents}
-            ),
-        )
-    else:
-        register_env("env", lambda _: StatelessCartPole())
+# Register our environment with tune.
+if args.num_agents > 0:
+    register_env(
+        "env",
+        lambda _: MultiAgentStatelessCartPole(config={"num_agents": args.num_agents}),
+    )
+else:
+    register_env("env", lambda _: StatelessCartPole())
 
-    config = (
-        PPOConfig()
-        .environment("env")
-        .env_runners(env_to_module_connector=_env_to_module)
-        .training(
-            num_epochs=6,
-            lr=0.0003,
-            train_batch_size=4000,
-            vf_loss_coeff=0.01,
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(
-                use_lstm=True,
-                max_seq_len=20,
-                fcnet_hiddens=[32],
-                fcnet_activation="linear",
-                fcnet_kernel_initializer=nn.init.xavier_uniform_,
-                fcnet_bias_initializer=nn.init.constant_,
-                fcnet_bias_initializer_kwargs={"val": 0.0},
-                vf_share_layers=True,
-            ),
-        )
+config = (
+    PPOConfig()
+    .environment("env")
+    .env_runners(env_to_module_connector=_env_to_module)
+    .training(
+        num_epochs=6,
+        lr=0.0003,
+        train_batch_size=4000,
+        vf_loss_coeff=0.01,
+    )
+    .rl_module(
+        model_config=DefaultModelConfig(
+            use_lstm=True,
+            max_seq_len=20,
+            fcnet_hiddens=[32],
+            fcnet_activation="linear",
+            fcnet_kernel_initializer=nn.init.xavier_uniform_,
+            fcnet_bias_initializer=nn.init.constant_,
+            fcnet_bias_initializer_kwargs={"val": 0.0},
+            vf_share_layers=True,
+        ),
+    )
+)
+
+# Add a simple multi-agent setup.
+if args.num_agents > 0:
+    config = config.multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
     )
 
-    # Add a simple multi-agent setup.
-    if args.num_agents > 0:
-        config = config.multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
-        )
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(config, args)

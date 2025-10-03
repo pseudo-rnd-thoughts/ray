@@ -67,36 +67,36 @@ parser = add_rllib_example_script_args(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    assert args.num_agents > 0, "Must set --num-agents > 0 when running this script!"
+assert args.num_agents > 0, "Must set --num-agents > 0 when running this script!"
 
-    # Here, we use the "Agent Environment Cycle" (AEC) PettingZoo environment type.
-    # For a "Parallel" environment example, see the rock paper scissors examples
-    # in this same repository folder.
-    register_env("env", lambda _: PettingZooEnv(waterworld_v4.env()))
+# Here, we use the "Agent Environment Cycle" (AEC) PettingZoo environment type.
+# For a "Parallel" environment example, see the rock paper scissors examples
+# in this same repository folder.
+register_env("env", lambda _: PettingZooEnv(waterworld_v4.env()))
 
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("env")
-        .multi_agent(
-            policies={"p0"},
-            # All agents map to the exact same policy.
-            policy_mapping_fn=(lambda aid, *args, **kwargs: "p0"),
-        )
-        .training(
-            model={
-                "vf_share_layers": True,
-            },
-            vf_loss_coeff=0.005,
-        )
-        .rl_module(
-            rl_module_spec=MultiRLModuleSpec(
-                rl_module_specs={"p0": RLModuleSpec()},
-            ),
-        )
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("env")
+    .multi_agent(
+        policies={"p0"},
+        # All agents map to the exact same policy.
+        policy_mapping_fn=(lambda aid, *args, **kwargs: "p0"),
     )
+    .training(
+        model={
+            "vf_share_layers": True,
+        },
+        vf_loss_coeff=0.005,
+    )
+    .rl_module(
+        rl_module_spec=MultiRLModuleSpec(
+            rl_module_specs={"p0": RLModuleSpec()},
+        ),
+    )
+)
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

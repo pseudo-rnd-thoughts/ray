@@ -211,41 +211,41 @@ class LargeEpsAdamTorchLearner(PPOTorchLearner):
         )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("CartPole-v1")
-        # Plug in our custom callback (on_algorithm_init) to make all RLModules
-        # float16 models.
-        .callbacks(on_algorithm_init=on_algorithm_init)
-        # Plug in our custom loss scaler class to stabilize gradient computations
-        # (by scaling the loss, then unscaling the gradients before applying them).
-        # This is using the built-in, experimental feature of TorchLearner.
-        .experimental(_torch_grad_scaler_class=Float16GradScaler)
-        # Plug in our custom env-to-module ConnectorV2 piece to convert all observations
-        # and reward in the episodes (permanently) to float16.
-        .env_runners(
-            env_to_module_connector=(
-                lambda env, spaces, device: WriteObsAndRewardsAsFloat16()
-            ),
-        )
-        .training(
-            # Plug in our custom TorchLearner (using a much larger, stabilizing epsilon
-            # on the Adam optimizer).
-            learner_class=LargeEpsAdamTorchLearner,
-            # Switch off grad clipping entirely b/c we use our custom grad scaler with
-            # built-in inf/nan detection (see `step` method of `Float16GradScaler`).
-            grad_clip=None,
-            # Typical CartPole-v1 hyperparams known to work well:
-            gamma=0.99,
-            lr=0.0003,
-            num_epochs=6,
-            vf_loss_coeff=0.01,
-            use_kl_loss=True,
-        )
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("CartPole-v1")
+    # Plug in our custom callback (on_algorithm_init) to make all RLModules
+    # float16 models.
+    .callbacks(on_algorithm_init=on_algorithm_init)
+    # Plug in our custom loss scaler class to stabilize gradient computations
+    # (by scaling the loss, then unscaling the gradients before applying them).
+    # This is using the built-in, experimental feature of TorchLearner.
+    .experimental(_torch_grad_scaler_class=Float16GradScaler)
+    # Plug in our custom env-to-module ConnectorV2 piece to convert all observations
+    # and reward in the episodes (permanently) to float16.
+    .env_runners(
+        env_to_module_connector=(
+            lambda env, spaces, device: WriteObsAndRewardsAsFloat16()
+        ),
     )
+    .training(
+        # Plug in our custom TorchLearner (using a much larger, stabilizing epsilon
+        # on the Adam optimizer).
+        learner_class=LargeEpsAdamTorchLearner,
+        # Switch off grad clipping entirely b/c we use our custom grad scaler with
+        # built-in inf/nan detection (see `step` method of `Float16GradScaler`).
+        grad_clip=None,
+        # Typical CartPole-v1 hyperparams known to work well:
+        gamma=0.99,
+        lr=0.0003,
+        num_epochs=6,
+        vf_loss_coeff=0.01,
+        use_kl_loss=True,
+    )
+)
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

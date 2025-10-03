@@ -66,44 +66,44 @@ parser.add_argument(
     "Watch here for more details :) https://www.youtube.com/watch?v=x5Q6-wMx-K8",
 )
 
+args = parser.parse_args()
+
+assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
+
+# You can also register the env creator function explicitly with:
+# register_env("env", lambda cfg: RockPaperScissors({"sheldon_cooper_mode": False}))
+
+# Or you can hard code certain settings into the Env's constructor (`config`).
+# register_env(
+#    "rock-paper-scissors-w-sheldon-mode-activated",
+#    lambda config: RockPaperScissors({**config, **{"sheldon_cooper_mode": True}}),
+# )
+
+# Or allow the RLlib user to set more c'tor options via their algo config:
+# config.environment(env_config={[c'tor arg name]: [value]})
+# register_env("rock-paper-scissors", lambda cfg: RockPaperScissors(cfg))
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(
+        RockPaperScissors,
+        env_config={"sheldon_cooper_mode": args.sheldon_cooper_mode},
+    )
+    .env_runners(
+        env_to_module_connector=(
+            lambda env, spaces, device: FlattenObservations(multi_agent=True)
+        ),
+    )
+    .multi_agent(
+        # Define two policies.
+        policies={"player1", "player2"},
+        # Map agent "player1" to policy "player1" and agent "player2" to policy
+        # "player2".
+        policy_mapping_fn=lambda agent_id, episode, **kw: agent_id,
+    )
+)
+
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
-
-    # You can also register the env creator function explicitly with:
-    # register_env("env", lambda cfg: RockPaperScissors({"sheldon_cooper_mode": False}))
-
-    # Or you can hard code certain settings into the Env's constructor (`config`).
-    # register_env(
-    #    "rock-paper-scissors-w-sheldon-mode-activated",
-    #    lambda config: RockPaperScissors({**config, **{"sheldon_cooper_mode": True}}),
-    # )
-
-    # Or allow the RLlib user to set more c'tor options via their algo config:
-    # config.environment(env_config={[c'tor arg name]: [value]})
-    # register_env("rock-paper-scissors", lambda cfg: RockPaperScissors(cfg))
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(
-            RockPaperScissors,
-            env_config={"sheldon_cooper_mode": args.sheldon_cooper_mode},
-        )
-        .env_runners(
-            env_to_module_connector=(
-                lambda env, spaces, device: FlattenObservations(multi_agent=True)
-            ),
-        )
-        .multi_agent(
-            # Define two policies.
-            policies={"player1", "player2"},
-            # Map agent "player1" to policy "player1" and agent "player2" to policy
-            # "player2".
-            policy_mapping_fn=lambda agent_id, episode, **kw: agent_id,
-        )
-    )
-
     run_rllib_example_script_experiment(base_config, args)

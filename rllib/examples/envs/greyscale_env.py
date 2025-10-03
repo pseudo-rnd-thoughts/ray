@@ -112,7 +112,7 @@ config = (
     .reporting(min_time_s_per_iteration=30)
 )
 
-tune.Tuner(
+tuner = tune.Tuner(
     "PPO",
     param_space=config.to_dict(),
     run_config=tune.RunConfig(
@@ -123,4 +123,7 @@ tune.Tuner(
         },
         verbose=2,
     ),
-).fit()
+)
+
+if __name__ == "__main__":
+    tuner.fit()

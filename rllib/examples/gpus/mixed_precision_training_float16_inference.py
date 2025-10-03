@@ -131,38 +131,35 @@ class PPOTorchMixedPrecisionLearner(PPOTorchLearner):
         return results
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
+assert args.algo == "PPO", "Must set --algo=PPO when running this script!"
 
-    assert args.algo == "PPO", "Must set --algo=PPO when running this script!"
-
-    base_config = (
-        (PPOConfig().environment("CartPole-v1"))
-        .env_runners(
-            env_to_module_connector=lambda env, spaces, device: Float16Connector()
-        )
-        # Plug in our custom callback (on_algorithm_init) to make EnvRunner RLModules
-        # float16 models.
-        .callbacks(on_algorithm_init=on_algorithm_init)
-        # Plug in the torch built-int loss scaler class to stabilize gradient
-        # computations (by scaling the loss, then unscaling the gradients before
-        # applying them). This is using the built-in, experimental feature of
-        # TorchLearner.
-        .experimental(_torch_grad_scaler_class=torch.cuda.amp.GradScaler)
-        .training(
-            # Plug in the custom Learner class to activate mixed-precision training for
-            # our torch RLModule (uses `torch.amp.autocast()`).
-            learner_class=PPOTorchMixedPrecisionLearner,
-            # Switch off grad clipping entirely b/c we use our custom grad scaler with
-            # built-in inf/nan detection (see `step` method of `Float16GradScaler`).
-            grad_clip=None,
-            # Typical CartPole-v1 hyperparams known to work well:
-            gamma=0.99,
-            lr=0.0003,
-            num_epochs=6,
-            vf_loss_coeff=0.01,
-            use_kl_loss=True,
-        )
+base_config = (
+    (PPOConfig().environment("CartPole-v1"))
+    .env_runners(env_to_module_connector=lambda env, spaces, device: Float16Connector())
+    # Plug in our custom callback (on_algorithm_init) to make EnvRunner RLModules
+    # float16 models.
+    .callbacks(on_algorithm_init=on_algorithm_init)
+    # Plug in the torch built-int loss scaler class to stabilize gradient
+    # computations (by scaling the loss, then unscaling the gradients before
+    # applying them). This is using the built-in, experimental feature of
+    # TorchLearner.
+    .experimental(_torch_grad_scaler_class=torch.cuda.amp.GradScaler)
+    .training(
+        # Plug in the custom Learner class to activate mixed-precision training for
+        # our torch RLModule (uses `torch.amp.autocast()`).
+        learner_class=PPOTorchMixedPrecisionLearner,
+        # Switch off grad clipping entirely b/c we use our custom grad scaler with
+        # built-in inf/nan detection (see `step` method of `Float16GradScaler`).
+        grad_clip=None,
+        # Typical CartPole-v1 hyperparams known to work well:
+        gamma=0.99,
+        lr=0.0003,
+        num_epochs=6,
+        vf_loss_coeff=0.01,
+        use_kl_loss=True,
     )
+)
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

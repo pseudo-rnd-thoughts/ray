@@ -99,42 +99,43 @@ parser.add_argument(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Start the dummy CartPole "simulation".
-    if args.use_dummy_client:
-        threading.Thread(
-            target=_dummy_external_client,
-            args=(
-                # Connect to the first remote EnvRunner, of - if there is no remote one -
-                # to the local EnvRunner.
-                args.port
-                + (args.num_env_runners if args.num_env_runners is not None else 1),
-            ),
-        ).start()
+# Start the dummy CartPole "simulation".
+if args.use_dummy_client:
+    threading.Thread(
+        target=_dummy_external_client,
+        args=(
+            # Connect to the first remote EnvRunner, of - if there is no remote one -
+            # to the local EnvRunner.
+            args.port
+            + (args.num_env_runners if args.num_env_runners is not None else 1),
+        ),
+    ).start()
 
-    # Define the RLlib (server) config.
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(
-            observation_space=gym.spaces.Box(
-                float("-inf"), float("-inf"), (4,), np.float32
-            ),
-            action_space=gym.spaces.Discrete(2),
-            # EnvRunners listen on `port` + their worker index.
-            env_config={"port": args.port},
-        )
-        .env_runners(
-            # Point RLlib to the custom EnvRunner to be used here.
-            env_runner_cls=EnvRunnerServerForExternalInference,
-        )
-        .training(
-            num_epochs=10,
-            vf_loss_coeff=0.01,
-        )
-        .rl_module(model_config=DefaultModelConfig(vf_share_layers=True))
+# Define the RLlib (server) config.
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(
+        observation_space=gym.spaces.Box(
+            float("-inf"), float("-inf"), (4,), np.float32
+        ),
+        action_space=gym.spaces.Discrete(2),
+        # EnvRunners listen on `port` + their worker index.
+        env_config={"port": args.port},
     )
+    .env_runners(
+        # Point RLlib to the custom EnvRunner to be used here.
+        env_runner_cls=EnvRunnerServerForExternalInference,
+    )
+    .training(
+        num_epochs=10,
+        vf_loss_coeff=0.01,
+    )
+    .rl_module(model_config=DefaultModelConfig(vf_share_layers=True))
+)
 
+
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

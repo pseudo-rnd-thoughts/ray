@@ -90,49 +90,49 @@ parser.set_defaults(
     num_agents=2,
 )
 
+args = parser.parse_args()
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(DoubleRowCorridorEnv)
+    .env_runners(
+        num_envs_per_env_runner=20,
+        # Define a list of two connector piece to be prepended to the env-to-module
+        # connector pipeline:
+        # 1) The custom connector piece: A MultiAgentObservationPreprocessor, which
+        # enhances each agents' individual observations through adding the
+        # respective other agent's row index to the observation.
+        # 2) A FlattenObservations connector to flatten the integer observations
+        # for `agent_0`, which the AddOtherAgentsRowIndexToXYPos outputs.
+        env_to_module_connector=lambda env, spaces, device: [
+            AddOtherAgentsRowIndexToXYPos(),
+            # Only flatten agent_0's observations (b/c these are ints that need to
+            # be one-hot'd).
+            FlattenObservations(multi_agent=True, agent_ids=["agent_0"]),
+        ],
+    )
+    .training(
+        train_batch_size_per_learner=512,
+        gamma=0.95,
+        # Linearly adjust learning rate based on number of GPUs.
+        lr=0.0003 * (args.num_learners or 1),
+        vf_loss_coeff=0.01,
+    )
+    .multi_agent(
+        policies={"p0", "p1"},
+        policy_mapping_fn=lambda aid, eps, **kw: "p0" if aid == "agent_0" else "p1",
+    )
+)
 
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(DoubleRowCorridorEnv)
-        .env_runners(
-            num_envs_per_env_runner=20,
-            # Define a list of two connector piece to be prepended to the env-to-module
-            # connector pipeline:
-            # 1) The custom connector piece: A MultiAgentObservationPreprocessor, which
-            # enhances each agents' individual observations through adding the
-            # respective other agent's row index to the observation.
-            # 2) A FlattenObservations connector to flatten the integer observations
-            # for `agent_0`, which the AddOtherAgentsRowIndexToXYPos outputs.
-            env_to_module_connector=lambda env, spaces, device: [
-                AddOtherAgentsRowIndexToXYPos(),
-                # Only flatten agent_0's observations (b/c these are ints that need to
-                # be one-hot'd).
-                FlattenObservations(multi_agent=True, agent_ids=["agent_0"]),
-            ],
-        )
-        .training(
-            train_batch_size_per_learner=512,
-            gamma=0.95,
-            # Linearly adjust learning rate based on number of GPUs.
-            lr=0.0003 * (args.num_learners or 1),
-            vf_loss_coeff=0.01,
-        )
-        .multi_agent(
-            policies={"p0", "p1"},
-            policy_mapping_fn=lambda aid, eps, **kw: "p0" if aid == "agent_0" else "p1",
-        )
+# PPO specific settings.
+if args.algo == "PPO":
+    base_config.training(
+        minibatch_size=64,
+        lambda_=0.1,
+        vf_clip_param=10.0,
     )
 
-    # PPO specific settings.
-    if args.algo == "PPO":
-        base_config.training(
-            minibatch_size=64,
-            lambda_=0.1,
-            vf_clip_param=10.0,
-        )
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

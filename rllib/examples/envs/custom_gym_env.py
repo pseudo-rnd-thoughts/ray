@@ -136,29 +136,30 @@ class SimpleCorridor(gym.Env):
 
 # ws-template-code-end
 
-if __name__ == "__main__":
-    args = parser.parse_args()
 
-    # Can also register the env creator function explicitly with:
-    # register_env("corridor-env", lambda config: SimpleCorridor())
+args = parser.parse_args()
 
-    # Or you can hard code certain settings into the Env's constructor (`config`).
-    # register_env(
-    #    "corridor-env-w-len-100",
-    #    lambda config: SimpleCorridor({**config, **{"corridor_length": 100}}),
-    # )
+# Can also register the env creator function explicitly with:
+# register_env("corridor-env", lambda config: SimpleCorridor())
 
-    # Or allow the RLlib user to set more c'tor options via their algo config:
-    # config.environment(env_config={[c'tor arg name]: [value]})
-    # register_env("corridor-env", lambda config: SimpleCorridor(config))
+# Or you can hard code certain settings into the Env's constructor (`config`).
+# register_env(
+#    "corridor-env-w-len-100",
+#    lambda config: SimpleCorridor({**config, **{"corridor_length": 100}}),
+# )
 
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(
-            SimpleCorridor,  # or provide the registered string: "corridor-env"
-            env_config={"corridor_length": args.corridor_length},
-        )
+# Or allow the RLlib user to set more c'tor options via their algo config:
+# config.environment(env_config={[c'tor arg name]: [value]})
+# register_env("corridor-env", lambda config: SimpleCorridor(config))
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(
+        SimpleCorridor,  # or provide the registered string: "corridor-env"
+        env_config={"corridor_length": args.corridor_length},
     )
+)
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

@@ -92,40 +92,38 @@ parser.add_argument(
     help="The learning rate used in the policy optimizer.",
 )
 
+args = parser.parse_args()
+assert args.algo == "PPO", "Must set --algo=PPO when running this script!"
+
+base_config = (
+    PPOConfig()
+    .environment("CartPole-v1")
+    .training(
+        # This is the most important setting in this script: We point our PPO
+        # algorithm to use the custom Learner (instead of the default
+        # PPOTorchLearner).
+        learner_class=PPOTorchLearnerWithSeparateVfOptimizer,
+        # We use this simple method here to inject a new setting that our
+        # custom Learner class uses in its `configure_optimizers_for_module`
+        # method. This is convenient and avoids having to subclass `PPOConfig` only
+        # to add a few new settings to it. Within our Learner, we can access this
+        # new setting through:
+        # `self.config.learner_config_dict['lr_vf']`
+        learner_config_dict={"lr_vf": args.lr_vf},
+        # Some settings to make this example learn better.
+        num_epochs=6,
+        # Since we are using separate optimizers for the two NN components, the
+        # value of `vf_loss_coeff` does not matter anymore. We set this to 1.0 here.
+        vf_loss_coeff=1.0,
+        # The policy learning rate, settable through the command line `--lr` arg.
+        lr=args.lr_policy,
+    )
+    .rl_module(
+        # Another very important setting is this here. Make sure you use
+        # completely separate NNs for policy and value-functions.
+        model_config=DefaultModelConfig(vf_share_layers=False),
+    )
+)
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    assert args.algo == "PPO", "Must set --algo=PPO when running this script!"
-
-    base_config = (
-        PPOConfig()
-        .environment("CartPole-v1")
-        .training(
-            # This is the most important setting in this script: We point our PPO
-            # algorithm to use the custom Learner (instead of the default
-            # PPOTorchLearner).
-            learner_class=PPOTorchLearnerWithSeparateVfOptimizer,
-            # We use this simple method here to inject a new setting that our
-            # custom Learner class uses in its `configure_optimizers_for_module`
-            # method. This is convenient and avoids having to subclass `PPOConfig` only
-            # to add a few new settings to it. Within our Learner, we can access this
-            # new setting through:
-            # `self.config.learner_config_dict['lr_vf']`
-            learner_config_dict={"lr_vf": args.lr_vf},
-            # Some settings to make this example learn better.
-            num_epochs=6,
-            # Since we are using separate optimizers for the two NN components, the
-            # value of `vf_loss_coeff` does not matter anymore. We set this to 1.0 here.
-            vf_loss_coeff=1.0,
-            # The policy learning rate, settable through the command line `--lr` arg.
-            lr=args.lr_policy,
-        )
-        .rl_module(
-            # Another very important setting is this here. Make sure you use
-            # completely separate NNs for policy and value-functions.
-            model_config=DefaultModelConfig(vf_share_layers=False),
-        )
-    )
-
     run_rllib_example_script_experiment(base_config, args)

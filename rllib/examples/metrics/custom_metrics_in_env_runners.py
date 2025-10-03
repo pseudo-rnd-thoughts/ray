@@ -304,47 +304,48 @@ class MsPacmanHeatmapCallback(RLlibCallback):
 parser = add_rllib_example_script_args(default_reward=450.0)
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Register our environment with tune.
-    register_env(
+# Register our environment with tune.
+register_env(
+    "env",
+    lambda cfg: wrap_atari_for_new_api_stack(
+        gym.make("ale_py:ALE/MsPacman-v5", **cfg, **{"render_mode": "rgb_array"}),
+        framestack=4,
+    ),
+)
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(
         "env",
-        lambda cfg: wrap_atari_for_new_api_stack(
-            gym.make("ale_py:ALE/MsPacman-v5", **cfg, **{"render_mode": "rgb_array"}),
-            framestack=4,
-        ),
+        env_config={
+            # Make analogous to old v4 + NoFrameskip.
+            "frameskip": 1,
+            "full_action_space": False,
+            "repeat_action_probability": 0.0,
+        },
     )
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(
-            "env",
-            env_config={
-                # Make analogous to old v4 + NoFrameskip.
-                "frameskip": 1,
-                "full_action_space": False,
-                "repeat_action_probability": 0.0,
-            },
-        )
-        .callbacks(MsPacmanHeatmapCallback)
-        .training(
-            # Make learning time fast, but note that this example may not
-            # necessarily learn well (its purpose is to demo the
-            # functionality of callbacks and the MetricsLogger).
-            train_batch_size_per_learner=2000,
-            minibatch_size=512,
-            num_epochs=6,
-        )
-        .rl_module(
-            model_config_dict={
-                "vf_share_layers": True,
-                "conv_filters": [[16, 4, 2], [32, 4, 2], [64, 4, 2], [128, 4, 2]],
-                "conv_activation": "relu",
-                "post_fcnet_hiddens": [256],
-            }
-        )
+    .callbacks(MsPacmanHeatmapCallback)
+    .training(
+        # Make learning time fast, but note that this example may not
+        # necessarily learn well (its purpose is to demo the
+        # functionality of callbacks and the MetricsLogger).
+        train_batch_size_per_learner=2000,
+        minibatch_size=512,
+        num_epochs=6,
     )
+    .rl_module(
+        model_config_dict={
+            "vf_share_layers": True,
+            "conv_filters": [[16, 4, 2], [32, 4, 2], [64, 4, 2], [128, 4, 2]],
+            "conv_activation": "relu",
+            "post_fcnet_hiddens": [256],
+        }
+    )
+)
 
+
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

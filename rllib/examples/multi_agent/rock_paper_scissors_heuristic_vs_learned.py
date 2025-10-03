@@ -74,73 +74,72 @@ register_env(
     lambda _: ParallelPettingZooEnv(rps_v2.parallel_env()),
 )
 
+args = parser.parse_args()
+
+assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("pettingzoo_rps")
+    .env_runners(
+        env_to_module_connector=lambda env, spaces, device: (
+            # `agent_ids=...`: Only flatten obs for the learning RLModule.
+            FlattenObservations(multi_agent=True, agent_ids={"player_0"}),
+        ),
+    )
+    .multi_agent(
+        policies={"always_same", "beat_last", "learned"},
+        # Let learning Policy always play against either heuristic one:
+        # `always_same` or `beat_last`.
+        policy_mapping_fn=lambda aid, episode: (
+            "learned"
+            if aid == "player_0"
+            else random.choice(["always_same", "beat_last"])
+        ),
+        # Must define this as both heuristic RLMs will throw an error, if their
+        # `forward_train` is called.
+        policies_to_train=["learned"],
+    )
+    .training(
+        vf_loss_coeff=0.005,
+    )
+    .rl_module(
+        rl_module_spec=MultiRLModuleSpec(
+            rl_module_specs={
+                "always_same": RLModuleSpec(
+                    module_class=AlwaysSameHeuristicRLM,
+                    observation_space=gym.spaces.Discrete(4),
+                    action_space=gym.spaces.Discrete(3),
+                ),
+                "beat_last": RLModuleSpec(
+                    module_class=BeatLastHeuristicRLM,
+                    observation_space=gym.spaces.Discrete(4),
+                    action_space=gym.spaces.Discrete(3),
+                ),
+                "learned": RLModuleSpec(
+                    model_config=DefaultModelConfig(
+                        use_lstm=args.use_lstm,
+                        # Use a simpler FCNet when we also have an LSTM.
+                        fcnet_hiddens=[32] if args.use_lstm else [256, 256],
+                        lstm_cell_size=256,
+                        max_seq_len=15,
+                        vf_share_layers=True,
+                    ),
+                ),
+            }
+        ),
+    )
+)
+
+# Make `args.stop_reward` "point" to the reward of the learned policy.
+stop = {
+    TRAINING_ITERATION: args.stop_iters,
+    f"{ENV_RUNNER_RESULTS}/module_episode_returns_mean/learned": args.stop_reward,
+    NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
+}
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("pettingzoo_rps")
-        .env_runners(
-            env_to_module_connector=lambda env, spaces, device: (
-                # `agent_ids=...`: Only flatten obs for the learning RLModule.
-                FlattenObservations(multi_agent=True, agent_ids={"player_0"}),
-            ),
-        )
-        .multi_agent(
-            policies={"always_same", "beat_last", "learned"},
-            # Let learning Policy always play against either heuristic one:
-            # `always_same` or `beat_last`.
-            policy_mapping_fn=lambda aid, episode: (
-                "learned"
-                if aid == "player_0"
-                else random.choice(["always_same", "beat_last"])
-            ),
-            # Must define this as both heuristic RLMs will throw an error, if their
-            # `forward_train` is called.
-            policies_to_train=["learned"],
-        )
-        .training(
-            vf_loss_coeff=0.005,
-        )
-        .rl_module(
-            rl_module_spec=MultiRLModuleSpec(
-                rl_module_specs={
-                    "always_same": RLModuleSpec(
-                        module_class=AlwaysSameHeuristicRLM,
-                        observation_space=gym.spaces.Discrete(4),
-                        action_space=gym.spaces.Discrete(3),
-                    ),
-                    "beat_last": RLModuleSpec(
-                        module_class=BeatLastHeuristicRLM,
-                        observation_space=gym.spaces.Discrete(4),
-                        action_space=gym.spaces.Discrete(3),
-                    ),
-                    "learned": RLModuleSpec(
-                        model_config=DefaultModelConfig(
-                            use_lstm=args.use_lstm,
-                            # Use a simpler FCNet when we also have an LSTM.
-                            fcnet_hiddens=[32] if args.use_lstm else [256, 256],
-                            lstm_cell_size=256,
-                            max_seq_len=15,
-                            vf_share_layers=True,
-                        ),
-                    ),
-                }
-            ),
-        )
-    )
-
-    # Make `args.stop_reward` "point" to the reward of the learned policy.
-    stop = {
-        TRAINING_ITERATION: args.stop_iters,
-        f"{ENV_RUNNER_RESULTS}/module_episode_returns_mean/learned": args.stop_reward,
-        NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
-    }
-
     run_rllib_example_script_experiment(
         base_config,
         args,

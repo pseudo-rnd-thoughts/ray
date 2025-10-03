@@ -77,33 +77,33 @@ parser.set_defaults(
 parser.add_argument("--seed", type=int, default=42)
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Register our environment with tune.
-    if args.num_agents > 0:
-        register_env(
-            "env",
-            lambda _: MultiAgentCartPole(config={"num_agents": args.num_agents}),
-        )
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("env" if args.num_agents > 0 else "CartPole-v1")
-        # Make sure every environment gets a fixed seed.
-        .debugging(seed=args.seed)
-        # Log gradients and check them in the test.
-        .reporting(log_gradients=True)
+# Register our environment with tune.
+if args.num_agents > 0:
+    register_env(
+        "env",
+        lambda _: MultiAgentCartPole(config={"num_agents": args.num_agents}),
     )
 
-    # Add a simple multi-agent setup.
-    if args.num_agents > 0:
-        base_config.multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
-        )
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("env" if args.num_agents > 0 else "CartPole-v1")
+    # Make sure every environment gets a fixed seed.
+    .debugging(seed=args.seed)
+    # Log gradients and check them in the test.
+    .reporting(log_gradients=True)
+)
 
+# Add a simple multi-agent setup.
+if args.num_agents > 0:
+    base_config.multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
+    )
+
+if __name__ == "__main__":
     results1 = run_rllib_example_script_experiment(
         base_config,
         args,

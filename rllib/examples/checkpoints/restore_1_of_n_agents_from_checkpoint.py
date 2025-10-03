@@ -79,52 +79,51 @@ parser.set_defaults(
 )
 # TODO (sven): This arg is currently ignored (hard-set to 2).
 parser.add_argument("--num-policies", type=int, default=2)
+args = parser.parse_args()
+
+# Register our environment with tune.
+if args.num_agents > 1:
+    register_env(
+        "env",
+        lambda _: MultiAgentPendulum(config={"num_agents": args.num_agents}),
+    )
+else:
+    raise ValueError(
+        f"`num_agents` must be > 1, but is {args.num_agents}."
+        "Read the script docstring for more information."
+    )
+
+assert args.checkpoint_freq > 0, (
+    "This example requires at least one checkpoint to load the RLModule "
+    "weights for policy 0."
+)
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("env")
+    .training(
+        train_batch_size_per_learner=512,
+        minibatch_size=64,
+        lambda_=0.1,
+        gamma=0.95,
+        lr=0.0003,
+        vf_clip_param=10.0,
+    )
+    .rl_module(
+        model_config=DefaultModelConfig(fcnet_activation="relu"),
+    )
+)
+
+# Add a simple multi-agent setup.
+if args.num_agents > 0:
+    base_config.multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
+    )
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    # Register our environment with tune.
-    if args.num_agents > 1:
-        register_env(
-            "env",
-            lambda _: MultiAgentPendulum(config={"num_agents": args.num_agents}),
-        )
-    else:
-        raise ValueError(
-            f"`num_agents` must be > 1, but is {args.num_agents}."
-            "Read the script docstring for more information."
-        )
-
-    assert args.checkpoint_freq > 0, (
-        "This example requires at least one checkpoint to load the RLModule "
-        "weights for policy 0."
-    )
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("env")
-        .training(
-            train_batch_size_per_learner=512,
-            minibatch_size=64,
-            lambda_=0.1,
-            gamma=0.95,
-            lr=0.0003,
-            vf_clip_param=10.0,
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(fcnet_activation="relu"),
-        )
-    )
-
-    # Add a simple multi-agent setup.
-    if args.num_agents > 0:
-        base_config.multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
-        )
-
     # Augment the base config with further settings and train the agents.
     results = run_rllib_example_script_experiment(base_config, args, keep_ray_up=True)
 

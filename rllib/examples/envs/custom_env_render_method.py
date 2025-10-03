@@ -157,43 +157,43 @@ MultiAgentCustomRenderedCorridorEnv = make_multi_agent(
     lambda config: CustomRenderedCorridorEnv(config)
 )
 
+args = parser.parse_args()
+
+# The `config` arg passed into our Env's constructor (see the class' __init__ method
+# above). Feel free to change these.
+env_options = {
+    "corridor_length": 10,
+    "max_steps": 100,
+    "num_agents": args.num_agents,  # <- only used by the multu-agent version.
+}
+
+env_cls_to_use = (
+    CustomRenderedCorridorEnv
+    if args.num_agents == 0
+    else MultiAgentCustomRenderedCorridorEnv
+)
+
+tune.register_env("env", lambda _: env_cls_to_use(env_options))
+
+# Example config switching on rendering.
+base_config = (
+    PPOConfig()
+    # Configure our env to be the above-registered one.
+    .environment("env")
+    # Plugin our env-rendering (and logging) callback. This callback class allows
+    # you to fully customize your rendering behavior (which workers should render,
+    # which episodes, which (vector) env indices, etc..). We refer to this example
+    # script here for further details:
+    # https://github.com/ray-project/ray/blob/master/rllib/examples/envs/env_rendering_and_recording.py  # noqa
+    .callbacks(EnvRenderCallback)
+)
+
+if args.num_agents > 0:
+    base_config.multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, eps, **kw: f"p{aid}",
+    )
+
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    # The `config` arg passed into our Env's constructor (see the class' __init__ method
-    # above). Feel free to change these.
-    env_options = {
-        "corridor_length": 10,
-        "max_steps": 100,
-        "num_agents": args.num_agents,  # <- only used by the multu-agent version.
-    }
-
-    env_cls_to_use = (
-        CustomRenderedCorridorEnv
-        if args.num_agents == 0
-        else MultiAgentCustomRenderedCorridorEnv
-    )
-
-    tune.register_env("env", lambda _: env_cls_to_use(env_options))
-
-    # Example config switching on rendering.
-    base_config = (
-        PPOConfig()
-        # Configure our env to be the above-registered one.
-        .environment("env")
-        # Plugin our env-rendering (and logging) callback. This callback class allows
-        # you to fully customize your rendering behavior (which workers should render,
-        # which episodes, which (vector) env indices, etc..). We refer to this example
-        # script here for further details:
-        # https://github.com/ray-project/ray/blob/master/rllib/examples/envs/env_rendering_and_recording.py  # noqa
-        .callbacks(EnvRenderCallback)
-    )
-
-    if args.num_agents > 0:
-        base_config.multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, eps, **kw: f"p{aid}",
-        )
-
     run_rllib_example_script_experiment(base_config, args)

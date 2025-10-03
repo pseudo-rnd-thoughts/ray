@@ -83,35 +83,28 @@ parser.add_argument(
     "Set this to <<1.0 to approximate greedy behavior and to >>1.0 to approximate "
     "random behavior.",
 )
+args = parser.parse_args()
+
+config = (
+    PPOConfig()
+    .environment("CartPole-v1")
+    .training(
+        lr=0.0003,
+        num_epochs=6,
+        vf_loss_coeff=0.01,
+    )
+    # Specify the RLModule class to be used.
+    .rl_module(
+        rl_module_spec=RLModuleSpec(
+            module_class=CustomActionDistributionRLModule,
+            model_config={
+                "hidden_dim": 128,
+                "action_dist_temperature": args.temperature,
+            },
+        ),
+    )
+)
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    if args.algo != "PPO":
-        raise ValueError(
-            "This example script only runs with PPO! Set --algo=PPO on the command "
-            "line."
-        )
-
-    base_config = (
-        PPOConfig()
-        .environment("CartPole-v1")
-        .training(
-            lr=0.0003,
-            num_epochs=6,
-            vf_loss_coeff=0.01,
-        )
-        # Specify the RLModule class to be used.
-        .rl_module(
-            rl_module_spec=RLModuleSpec(
-                module_class=CustomActionDistributionRLModule,
-                model_config={
-                    "hidden_dim": 128,
-                    "action_dist_temperature": args.temperature,
-                },
-            ),
-        )
-    )
-
-    run_rllib_example_script_experiment(base_config, args)
+    run_rllib_example_script_experiment(config, args)

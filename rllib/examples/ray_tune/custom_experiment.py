@@ -152,31 +152,32 @@ def my_experiment(config: Dict):
     tune.report(results)
 
 
+base_config = PPOConfig().environment("CartPole-v1").env_runners(num_env_runners=0)
+# Convert to a plain dict for Tune. Note that this is usually not needed, you can
+# pass into the below Tune Tuner any instantiated RLlib AlgorithmConfig object.
+# However, for demonstration purposes, we show here how you can add other, arbitrary
+# keys to the plain config dict and then pass these keys to your custom experiment
+# function.
+config_dict = base_config.to_dict()
+
+# Set a Special flag signalling `my_experiment` how many training steps to
+# perform on each: the high learning rate and low learning rate.
+config_dict["train-iterations"] = 5
+# Set a Special flag signalling `my_experiment` how many episodes to evaluate for.
+config_dict["eval-episodes"] = 3
+
+training_function = tune.with_resources(
+    my_experiment,
+    resources=base_config.algo_class.default_resource_request(base_config),
+)
+
+tuner = tune.Tuner(
+    training_function,
+    # Pass in your config dict.
+    param_space=config_dict,
+)
+
 if __name__ == "__main__":
-    base_config = PPOConfig().environment("CartPole-v1").env_runners(num_env_runners=0)
-    # Convert to a plain dict for Tune. Note that this is usually not needed, you can
-    # pass into the below Tune Tuner any instantiated RLlib AlgorithmConfig object.
-    # However, for demonstration purposes, we show here how you can add other, arbitrary
-    # keys to the plain config dict and then pass these keys to your custom experiment
-    # function.
-    config_dict = base_config.to_dict()
-
-    # Set a Special flag signalling `my_experiment` how many training steps to
-    # perform on each: the high learning rate and low learning rate.
-    config_dict["train-iterations"] = 5
-    # Set a Special flag signalling `my_experiment` how many episodes to evaluate for.
-    config_dict["eval-episodes"] = 3
-
-    training_function = tune.with_resources(
-        my_experiment,
-        resources=base_config.algo_class.default_resource_request(base_config),
-    )
-
-    tuner = tune.Tuner(
-        training_function,
-        # Pass in your config dict.
-        param_space=config_dict,
-    )
     results = tuner.fit()
     best_results = results.get_best_result()
 

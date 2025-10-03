@@ -1,4 +1,4 @@
-"""Example of running a hierarchichal training setup in RLlib using its multi-agent API.
+"""Example of running a hierarchical training setup in RLlib using its multi-agent API.
 
 This example is very loosely based on this paper:
 [1] Hierarchical RL Based on Subgoal Discovery and Subpolicy Specialization -
@@ -123,61 +123,61 @@ parser.add_argument(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Run the flat (non-hierarchical env).
-    if args.flat:
-        cls = SixRoomEnv
-    # Run in hierarchical mode.
-    else:
-        cls = HierarchicalSixRoomEnv
+# Run the flat (non-hierarchical env).
+if args.flat:
+    cls = SixRoomEnv
+# Run in hierarchical mode.
+else:
+    cls = HierarchicalSixRoomEnv
 
-    tune.register_env("env", lambda cfg: cls(config=cfg))
+tune.register_env("env", lambda cfg: cls(config=cfg))
 
-    base_config = (
-        PPOConfig()
-        .environment(
-            "env",
-            env_config={
-                "map": args.map,
-                "max_steps_low_level": args.max_steps_low_level,
-                "time_limit": args.time_limit,
-                "num_low_level_agents": args.num_low_level_agents,
-            },
-        )
-        .env_runners(
-            # num_envs_per_env_runner=10,
-            env_to_module_connector=(
-                lambda env, spaces, device: (
-                    FlattenObservations(multi_agent=not args.flat)
-                )
-            ),
-        )
-        .training(
-            train_batch_size_per_learner=4000,
-            minibatch_size=512,
-            lr=0.0003,
-            num_epochs=20,
-            entropy_coeff=0.025,
-        )
+base_config = (
+    PPOConfig()
+    .environment(
+        "env",
+        env_config={
+            "map": args.map,
+            "max_steps_low_level": args.max_steps_low_level,
+            "time_limit": args.time_limit,
+            "num_low_level_agents": args.num_low_level_agents,
+        },
+    )
+    .env_runners(
+        # num_envs_per_env_runner=10,
+        env_to_module_connector=(
+            lambda env, spaces, device: (
+                FlattenObservations(multi_agent=not args.flat)
+            )
+        ),
+    )
+    .training(
+        train_batch_size_per_learner=4000,
+        minibatch_size=512,
+        lr=0.0003,
+        num_epochs=20,
+        entropy_coeff=0.025,
+    )
+)
+
+# Configure a proper multi-agent setup for the hierarchical env.
+if not args.flat:
+
+    def policy_mapping_fn(agent_id, episode, **kwargs):
+        # Map each low level agent to its respective (low-level) policy.
+        if agent_id.startswith("low_level_"):
+            return f"low_level_policy_{agent_id[-1]}"
+        # Map the high level agent to the high level policy.
+        else:
+            return "high_level_policy"
+
+    base_config.multi_agent(
+        policy_mapping_fn=policy_mapping_fn,
+        policies={"high_level_policy"}
+        | {f"low_level_policy_{i}" for i in range(args.num_low_level_agents)},
     )
 
-    # Configure a proper multi-agent setup for the hierarchical env.
-    if not args.flat:
-
-        def policy_mapping_fn(agent_id, episode, **kwargs):
-            # Map each low level agent to its respective (low-level) policy.
-            if agent_id.startswith("low_level_"):
-                return f"low_level_policy_{agent_id[-1]}"
-            # Map the high level agent to the high level policy.
-            else:
-                return "high_level_policy"
-
-        base_config.multi_agent(
-            policy_mapping_fn=policy_mapping_fn,
-            policies={"high_level_policy"}
-            | {f"low_level_policy_{i}" for i in range(args.num_low_level_agents)},
-        )
-
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

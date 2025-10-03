@@ -109,47 +109,47 @@ class ReduceCartPoleObservationsToNonMarkovian(SingleAgentObservationPreprocesso
         return np.array([observation[0], observation[2]], np.float32)
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Define the AlgorithmConfig used.
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        # You use the normal CartPole-v1 env here and your env-to-module preprocessor
-        # converts this into a non-Markovian version of CartPole.
-        .environment("CartPole-v1")
-        .env_runners(
-            env_to_module_connector=(
-                lambda env, spaces, device: ReduceCartPoleObservationsToNonMarkovian()
-            ),
-        )
-        .training(
-            gamma=0.99,
-            lr=0.0003,
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(
-                # Solve the non-Markovian env through using an LSTM-enhanced model.
-                use_lstm=True,
-                vf_share_layers=True,
-            ),
-        )
+# Define the AlgorithmConfig used.
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    # You use the normal CartPole-v1 env here and your env-to-module preprocessor
+    # converts this into a non-Markovian version of CartPole.
+    .environment("CartPole-v1")
+    .env_runners(
+        env_to_module_connector=(
+            lambda env, spaces, device: ReduceCartPoleObservationsToNonMarkovian()
+        ),
+    )
+    .training(
+        gamma=0.99,
+        lr=0.0003,
+    )
+    .rl_module(
+        model_config=DefaultModelConfig(
+            # Solve the non-Markovian env through using an LSTM-enhanced model.
+            use_lstm=True,
+            vf_share_layers=True,
+        ),
+    )
+)
+
+# PPO-specific settings (for better learning behavior only).
+if args.algo == "PPO":
+    base_config.training(
+        num_epochs=6,
+        vf_loss_coeff=0.01,
+    )
+# IMPALA-specific settings (for better learning behavior only).
+elif args.algo == "IMPALA":
+    base_config.training(
+        lr=0.0005,
+        vf_loss_coeff=0.05,
+        entropy_coeff=0.0,
     )
 
-    # PPO-specific settings (for better learning behavior only).
-    if args.algo == "PPO":
-        base_config.training(
-            num_epochs=6,
-            vf_loss_coeff=0.01,
-        )
-    # IMPALA-specific settings (for better learning behavior only).
-    elif args.algo == "IMPALA":
-        base_config.training(
-            lr=0.0005,
-            vf_loss_coeff=0.05,
-            entropy_coeff=0.0,
-        )
-
+if __name__ == "__main__":
     # Run everything as configured.
     run_rllib_example_script_experiment(base_config, args)

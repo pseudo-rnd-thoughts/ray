@@ -50,62 +50,63 @@ parser.add_argument(
     "--stop-reward", type=float, default=50.0, help="Reward at which we stop training."
 )
 
+args = parser.parse_args()
+
+# See rllib/tuned_examples/cql/pendulum-cql.yaml for comparison.
+config = (
+    cql.CQLConfig()
+    .api_stack(
+        enable_env_runner_and_connector_v2=False,
+        enable_rl_module_and_learner=False,
+    )
+    .framework(framework="torch")
+    .env_runners(num_env_runners=0)
+    .training(
+        n_step=3,
+        bc_iters=0,
+        clip_actions=False,
+        tau=0.005,
+        target_entropy="auto",
+        q_model_config={
+            "fcnet_hiddens": [256, 256],
+            "fcnet_activation": "relu",
+        },
+        policy_model_config={
+            "fcnet_hiddens": [256, 256],
+            "fcnet_activation": "relu",
+        },
+        optimization_config={
+            "actor_learning_rate": 3e-4,
+            "critic_learning_rate": 3e-4,
+            "entropy_learning_rate": 3e-4,
+        },
+        train_batch_size=256,
+        target_network_update_freq=1,
+        num_steps_sampled_before_learning_starts=256,
+    )
+    .reporting(min_train_timesteps_per_iteration=1000)
+    .debugging(log_level="INFO")
+    .environment("Pendulum-v1", normalize_actions=True)
+    .offline_data(
+        input_config={
+            "paths": ["tests/data/pendulum/enormous.zip"],
+            "format": "json",
+        }
+    )
+    .evaluation(
+        evaluation_num_env_runners=1,
+        evaluation_interval=1,
+        evaluation_duration=10,
+        evaluation_parallel_to_training=False,
+        evaluation_config=cql.CQLConfig.overrides(input_="sampler"),
+    )
+)
+# evaluation_parallel_to_training should be False b/c iterations are very long
+# and this would cause evaluation to lag one iter behind training.
+
+
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    # See rllib/tuned_examples/cql/pendulum-cql.yaml for comparison.
-    config = (
-        cql.CQLConfig()
-        .api_stack(
-            enable_env_runner_and_connector_v2=False,
-            enable_rl_module_and_learner=False,
-        )
-        .framework(framework="torch")
-        .env_runners(num_env_runners=0)
-        .training(
-            n_step=3,
-            bc_iters=0,
-            clip_actions=False,
-            tau=0.005,
-            target_entropy="auto",
-            q_model_config={
-                "fcnet_hiddens": [256, 256],
-                "fcnet_activation": "relu",
-            },
-            policy_model_config={
-                "fcnet_hiddens": [256, 256],
-                "fcnet_activation": "relu",
-            },
-            optimization_config={
-                "actor_learning_rate": 3e-4,
-                "critic_learning_rate": 3e-4,
-                "entropy_learning_rate": 3e-4,
-            },
-            train_batch_size=256,
-            target_network_update_freq=1,
-            num_steps_sampled_before_learning_starts=256,
-        )
-        .reporting(min_train_timesteps_per_iteration=1000)
-        .debugging(log_level="INFO")
-        .environment("Pendulum-v1", normalize_actions=True)
-        .offline_data(
-            input_config={
-                "paths": ["tests/data/pendulum/enormous.zip"],
-                "format": "json",
-            }
-        )
-        .evaluation(
-            evaluation_num_env_runners=1,
-            evaluation_interval=1,
-            evaluation_duration=10,
-            evaluation_parallel_to_training=False,
-            evaluation_config=cql.CQLConfig.overrides(input_="sampler"),
-        )
-    )
-    # evaluation_parallel_to_training should be False b/c iterations are very long
-    # and this would cause evaluation to lag one iter behind training.
-
     # Check, whether we can learn from the given file in `num_iterations`
     # iterations, up to a reward of `min_reward`.
     num_iterations = 5
@@ -117,14 +118,12 @@ if __name__ == "__main__":
         print(f"Iter {i}")
         eval_results = cql_algorithm.train().get(EVALUATION_RESULTS)
         if eval_results:
-            print(
-                "... R={}".format(eval_results[ENV_RUNNER_RESULTS][EPISODE_RETURN_MEAN])
-            )
+            print(f"... R={eval_results[ENV_RUNNER_RESULTS][EPISODE_RETURN_MEAN]}")
             # Learn until some reward is reached on an actual live env.
             if eval_results[ENV_RUNNER_RESULTS][EPISODE_RETURN_MEAN] >= min_reward:
                 # Test passed gracefully.
                 if args.as_test:
-                    print("Test passed after {} iterations.".format(i))
+                    print(f"Test passed after {i} iterations.")
                     quit(0)
                 learnt = True
                 break

@@ -88,12 +88,14 @@ class MyVPGWithExtraMetrics(VPG):
 parser = add_rllib_example_script_args(default_reward=50.0)
 parser.set_defaults(default_timesteps=50000)
 
+args = parser.parse_args()
+
+base_config = (MyVPGWithExtraMetrics
+.get_default_config()
+.environment(
+    "CartPole-v1"))
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    base_config = MyVPGWithExtraMetrics.get_default_config().environment("CartPole-v1")
-
     results = run_rllib_example_script_experiment(base_config, args)
 
     # Check, whether the logged metrics are present.

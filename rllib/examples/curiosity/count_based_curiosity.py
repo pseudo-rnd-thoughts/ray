@@ -101,36 +101,37 @@ ENV_OPTIONS = {
 }
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(
-            "FrozenLake-v1",
-            env_config=ENV_OPTIONS,
-        )
-        .env_runners(
-            num_envs_per_env_runner=5,
-            # Flatten discrete observations (into one-hot vectors).
-            env_to_module_connector=lambda env, spaces, device: FlattenObservations(),
-        )
-        .training(
-            # The main code in this example: We add the `CountBasedCuriosity` connector
-            # piece to our Learner connector pipeline.
-            # This pipeline is fed with collected episodes (either directly from the
-            # EnvRunners in on-policy fashion or from a replay buffer) and converts
-            # these episodes into the final train batch. The added piece computes
-            # intrinsic rewards based on simple observation counts and add them to
-            # the "main" (extrinsic) rewards.
-            learner_connector=(
-                None if args.no_curiosity else lambda *ags, **kw: CountBasedCuriosity()
-            ),
-            num_epochs=10,
-            vf_loss_coeff=0.01,
-        )
-        .rl_module(model_config=DefaultModelConfig(vf_share_layers=True))
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(
+        "FrozenLake-v1",
+        env_config=ENV_OPTIONS,
     )
+    .env_runners(
+        num_envs_per_env_runner=5,
+        # Flatten discrete observations (into one-hot vectors).
+        env_to_module_connector=lambda env, spaces, device: FlattenObservations(),
+    )
+    .training(
+        # The main code in this example: We add the `CountBasedCuriosity` connector
+        # piece to our Learner connector pipeline.
+        # This pipeline is fed with collected episodes (either directly from the
+        # EnvRunners in on-policy fashion or from a replay buffer) and converts
+        # these episodes into the final train batch. The added piece computes
+        # intrinsic rewards based on simple observation counts and add them to
+        # the "main" (extrinsic) rewards.
+        learner_connector=(
+            None if args.no_curiosity else lambda *ags, **kw: CountBasedCuriosity()
+        ),
+        num_epochs=10,
+        vf_loss_coeff=0.01,
+    )
+    .rl_module(model_config=DefaultModelConfig(vf_share_layers=True))
+)
 
+
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

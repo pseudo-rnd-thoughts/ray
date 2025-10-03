@@ -81,78 +81,78 @@ parser.set_defaults(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    register_env("multi_cart", lambda cfg: MultiAgentCartPole(cfg))
-    dummy_env = gym.make("CartPole-v1")
+register_env("multi_cart", lambda cfg: MultiAgentCartPole(cfg))
+dummy_env = gym.make("CartPole-v1")
 
-    rllib_dir = Path(__file__).parent.parent.parent
-    print(f"rllib dir={rllib_dir}")
-    offline_file = os.path.join(rllib_dir, "tests/data/cartpole/large.json")
+rllib_dir = Path(__file__).parent.parent.parent
+print(f"rllib dir={rllib_dir}")
+offline_file = os.path.join(rllib_dir, "tests/data/cartpole/large.json")
 
-    base_config = (
-        BCConfig()
-        # For offline RL, we do not specify an env here (b/c we don't want any env
-        # instances created on the EnvRunners). Instead, we'll provide observation-
-        # and action-spaces here for the RLModule to know its input- and output types.
-        .environment(
-            observation_space=dummy_env.observation_space,
-            action_space=dummy_env.action_space,
-        )
-        .offline_data(
-            input_=offline_file,
-            # The number of iterations to be run per learner when in multi-learner
-            # mode in a single RLlib training iteration. Leave this to `None` to
-            # run an entire epoch on the dataset during a single RLlib training
-            # iteration. For single-learner mode, 1 is the only option.
-            dataset_num_iters_per_learner=1 if not args.num_learners else None,
-        )
-        .multi_agent(
-            policies={"main"},
-            policy_mapping_fn=lambda *a, **kw: "main",
-        )
-        .evaluation(
-            evaluation_interval=1,
-            evaluation_num_env_runners=0,
-            evaluation_config=BCConfig.overrides(
-                # Evaluate on an actual env -> switch input back to "sampler".
-                input_="sampler",
-                # Do not explore during evaluation, but act greedily.
-                explore=False,
-                # Use a multi-agent setup for evaluation.
-                env="multi_cart",
-                env_config={"num_agents": args.num_agents},
-                policies={
-                    "main": PolicySpec(),
-                    "random": PolicySpec(policy_class=RandomPolicy),
-                },
-                # Only control agent 0 with the main (trained) policy.
-                policy_mapping_fn=(
-                    lambda aid, *a, **kw: "main" if aid == 0 else "random"
-                ),
-                # Note that we do NOT have to specify the `policies_to_train` here,
-                # b/c we are inside the evaluation config (no policy is trained during
-                # evaluation). The fact that the BCConfig above is "only" setup
-                # as single-agent makes it automatically only train the policy found in
-                # the BCConfig's `policies` field (which is "main").
-                # policies_to_train=["main"],
+base_config = (
+    BCConfig()
+    # For offline RL, we do not specify an env here (b/c we don't want any env
+    # instances created on the EnvRunners). Instead, we'll provide observation-
+    # and action-spaces here for the RLModule to know its input- and output types.
+    .environment(
+        observation_space=dummy_env.observation_space,
+        action_space=dummy_env.action_space,
+    )
+    .offline_data(
+        input_=offline_file,
+        # The number of iterations to be run per learner when in multi-learner
+        # mode in a single RLlib training iteration. Leave this to `None` to
+        # run an entire epoch on the dataset during a single RLlib training
+        # iteration. For single-learner mode, 1 is the only option.
+        dataset_num_iters_per_learner=1 if not args.num_learners else None,
+    )
+    .multi_agent(
+        policies={"main"},
+        policy_mapping_fn=lambda *a, **kw: "main",
+    )
+    .evaluation(
+        evaluation_interval=1,
+        evaluation_num_env_runners=0,
+        evaluation_config=BCConfig.overrides(
+            # Evaluate on an actual env -> switch input back to "sampler".
+            input_="sampler",
+            # Do not explore during evaluation, but act greedily.
+            explore=False,
+            # Use a multi-agent setup for evaluation.
+            env="multi_cart",
+            env_config={"num_agents": args.num_agents},
+            policies={
+                "main": PolicySpec(),
+                "random": PolicySpec(policy_class=RandomPolicy),
+            },
+            # Only control agent 0 with the main (trained) policy.
+            policy_mapping_fn=(
+                lambda aid, *a, **kw: "main" if aid == 0 else "random"
             ),
-        )
+            # Note that we do NOT have to specify the `policies_to_train` here,
+            # b/c we are inside the evaluation config (no policy is trained during
+            # evaluation). The fact that the BCConfig above is "only" setup
+            # as single-agent makes it automatically only train the policy found in
+            # the BCConfig's `policies` field (which is "main").
+            # policies_to_train=["main"],
+        ),
     )
+)
 
-    policy_eval_returns = (
-        f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/policy_reward_mean/"
-    )
+policy_eval_returns = (
+    f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/policy_reward_mean/"
+)
 
-    stop = {
-        # Check for the "main" policy's episode return, not the combined one.
-        # The combined one is the sum of the "main" policy + the "random" one.
-        policy_eval_returns + "main": args.stop_reward,
-        NUM_ENV_STEPS_TRAINED: args.stop_timesteps,
-        TRAINING_ITERATION: args.stop_iters,
-    }
+stop = {
+    # Check for the "main" policy's episode return, not the combined one.
+    # The combined one is the sum of the "main" policy + the "random" one.
+    policy_eval_returns + "main": args.stop_reward,
+    NUM_ENV_STEPS_TRAINED: args.stop_timesteps,
+    TRAINING_ITERATION: args.stop_iters,
+}
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(
         base_config,
         args,

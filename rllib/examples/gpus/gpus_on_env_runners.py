@@ -62,23 +62,22 @@ parser.set_defaults(
 )
 parser.add_argument("--num-gpus-per-env-runner", type=float, default=0.5)
 
+args = parser.parse_args()
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(GPURequiringEnv)
+    # Define Learner scaling.
+    .env_runners(
+        # How many EnvRunner workers do we need?
+        num_env_runners=args.num_env_runners,
+        # How many GPUs does each EnvRunner require? Note that the memory on (a
+        # possibly fractional GPU) must be enough to accommodate the RLModule AND
+        # if applicable also the Env's GPU needs).
+        num_gpus_per_env_runner=args.num_gpus_per_env_runner,
+    )
+)
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(GPURequiringEnv)
-        # Define Learner scaling.
-        .env_runners(
-            # How many EnvRunner workers do we need?
-            num_env_runners=args.num_env_runners,
-            # How many GPUs does each EnvRunner require? Note that the memory on (a
-            # possibly fractional GPU) must be enough to accommodate the RLModule AND
-            # if applicable also the Env's GPU needs).
-            num_gpus_per_env_runner=args.num_gpus_per_env_runner,
-        )
-    )
-
     run_rllib_example_script_experiment(base_config, args)

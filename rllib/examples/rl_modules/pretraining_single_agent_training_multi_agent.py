@@ -90,105 +90,104 @@ parser.add_argument(
     help="The min. episode return to reach during pre-training.",
 )
 
+# Parse the command line arguments.
+args = parser.parse_args()
 
-if __name__ == "__main__":
-
-    # Parse the command line arguments.
-    args = parser.parse_args()
-
-    # Ensure that the user has set the number of agents.
-    if args.num_agents == 0:
-        raise ValueError(
-            "This pre-training example script requires at least 1 agent. "
-            "Try setting the command line argument `--num-agents` to the "
-            "number of agents you want to use."
-        )
-
-    # Store the user's stopping criteria for the later training run.
-    stop_iters = args.stop_iters
-    stop_timesteps = args.stop_timesteps
-    stop_reward = args.stop_reward
-    num_agents = args.num_agents
-    as_test = args.as_test
-
-    # Override these criteria for the pre-training run.
-    args.stop_iters = 10000
-    args.stop_timesteps = 100000000
-    args.stop_reward = args.stop_reward_pretraining
-    args.num_agents = 0
-    args.as_test = False
-
-    # Define out pre-training single-agent algorithm. We will use the same module
-    # configuration for the pre-training and the training.
-    config = (
-        PPOConfig()
-        .environment("CartPole-v1")
-        .rl_module(
-            # Use a different number of hidden units for the pre-trained module.
-            model_config=DefaultModelConfig(fcnet_hiddens=[64]),
-        )
+# Ensure that the user has set the number of agents.
+if args.num_agents == 0:
+    raise ValueError(
+        "This pre-training example script requires at least 1 agent. "
+        "Try setting the command line argument `--num-agents` to the "
+        "number of agents you want to use."
     )
 
-    # Run the pre-training.
-    results = run_rllib_example_script_experiment(config, args, keep_ray_up=True)
-    # Get the checkpoint path.
-    module_chkpt_path = (
-        Path(results.get_best_result().checkpoint.path)
-        / COMPONENT_LEARNER_GROUP
-        / COMPONENT_LEARNER
-        / COMPONENT_RL_MODULE
-        / DEFAULT_MODULE_ID
+# Store the user's stopping criteria for the later training run.
+stop_iters = args.stop_iters
+stop_timesteps = args.stop_timesteps
+stop_reward = args.stop_reward
+num_agents = args.num_agents
+as_test = args.as_test
+
+# Override these criteria for the pre-training run.
+args.stop_iters = 10000
+args.stop_timesteps = 100000000
+args.stop_reward = args.stop_reward_pretraining
+args.num_agents = 0
+args.as_test = False
+
+# Define out pre-training single-agent algorithm. We will use the same module
+# configuration for the pre-training and the training.
+config = (
+    PPOConfig()
+    .environment("CartPole-v1")
+    .rl_module(
+        # Use a different number of hidden units for the pre-trained module.
+        model_config=DefaultModelConfig(fcnet_hiddens=[64]),
     )
-    assert module_chkpt_path.is_dir()
+)
 
-    # Restore the user's stopping criteria for the training run.
-    args.stop_iters = stop_iters
-    args.stop_timesteps = stop_timesteps
-    args.stop_reward = stop_reward
-    args.num_agents = num_agents
-    args.as_test = as_test
+# Run the pre-training.
+results = run_rllib_example_script_experiment(config, args, keep_ray_up=True)
+# Get the checkpoint path.
+module_chkpt_path = (
+    Path(results.get_best_result().checkpoint.path)
+    / COMPONENT_LEARNER_GROUP
+    / COMPONENT_LEARNER
+    / COMPONENT_RL_MODULE
+    / DEFAULT_MODULE_ID
+)
+assert module_chkpt_path.is_dir()
 
-    # Create a new MultiRLModule using the pre-trained module for policy 0.
-    env = gym.make("CartPole-v1")
-    module_specs = {}
-    module_class = PPOTorchRLModule
-    for i in range(args.num_agents):
-        module_specs[f"p{i}"] = RLModuleSpec(
-            module_class=PPOTorchRLModule,
-            observation_space=env.observation_space,
-            action_space=env.action_space,
-            model_config=DefaultModelConfig(fcnet_hiddens=[32]),
-            catalog_class=PPOCatalog,
-        )
+# Restore the user's stopping criteria for the training run.
+args.stop_iters = stop_iters
+args.stop_timesteps = stop_timesteps
+args.stop_reward = stop_reward
+args.num_agents = num_agents
+args.as_test = as_test
 
-    # Swap in the pre-trained module for policy 0.
-    module_specs["p0"] = RLModuleSpec(
+# Create a new MultiRLModule using the pre-trained module for policy 0.
+env = gym.make("CartPole-v1")
+module_specs = {}
+module_class = PPOTorchRLModule
+for i in range(args.num_agents):
+    module_specs[f"p{i}"] = RLModuleSpec(
         module_class=PPOTorchRLModule,
         observation_space=env.observation_space,
         action_space=env.action_space,
-        model_config=DefaultModelConfig(fcnet_hiddens=[64]),
+        model_config=DefaultModelConfig(fcnet_hiddens=[32]),
         catalog_class=PPOCatalog,
-        # Note, we load here the module directly from the checkpoint.
-        load_state_path=module_chkpt_path,
-    )
-    multi_rl_module_spec = MultiRLModuleSpec(rl_module_specs=module_specs)
-
-    # Register our environment with tune if we use multiple agents.
-    register_env(
-        "multi-cart",
-        lambda _: MultiAgentCartPole(config={"num_agents": args.num_agents}),
     )
 
-    # Configure the main (multi-agent) training run.
-    config = (
-        PPOConfig()
-        .environment("multi-cart")
-        .multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, eps, **kw: f"p{aid}",
-        )
-        .rl_module(rl_module_spec=multi_rl_module_spec)
-    )
+# Swap in the pre-trained module for policy 0.
+module_specs["p0"] = RLModuleSpec(
+    module_class=PPOTorchRLModule,
+    observation_space=env.observation_space,
+    action_space=env.action_space,
+    model_config=DefaultModelConfig(fcnet_hiddens=[64]),
+    catalog_class=PPOCatalog,
+    # Note, we load here the module directly from the checkpoint.
+    load_state_path=module_chkpt_path,
+)
+multi_rl_module_spec = MultiRLModuleSpec(rl_module_specs=module_specs)
 
+# Register our environment with tune if we use multiple agents.
+register_env(
+    "multi-cart",
+    lambda _: MultiAgentCartPole(config={"num_agents": args.num_agents}),
+)
+
+# Configure the main (multi-agent) training run.
+config = (
+    PPOConfig()
+    .environment("multi-cart")
+    .multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, eps, **kw: f"p{aid}",
+    )
+    .rl_module(rl_module_spec=multi_rl_module_spec)
+)
+
+
+if __name__ == "__main__":
     # Run the main training run.
     run_rllib_example_script_experiment(config, args)

@@ -148,61 +148,60 @@ parser.add_argument(
     help="The rate by which the learning rate should exponentially decay.",
 )
 
-if __name__ == "__main__":
-    # Use `parser` to add your own custom command line options to this script
-    # and (if needed) use their values to set up `config` below.
-    args = parser.parse_args()
+# Use `parser` to add your own custom command line options to this script
+# and (if needed) use their values to set up `config` below.
+args = parser.parse_args()
 
-    config = (
-        PPOConfig()
-        .environment("CartPole-v1")
-        .training(
-            lr=0.03,
-            num_sgd_iter=6,
-            vf_loss_coeff=0.01,
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(
-                fcnet_hiddens=[32],
-                fcnet_activation="linear",
-                vf_share_layers=True,
-            ),
-        )
-        .evaluation(
-            evaluation_num_env_runners=1,
-            evaluation_interval=1,
-            evaluation_parallel_to_training=True,
-            evaluation_config=PPOConfig.overrides(exploration=False),
-        )
-        .experimental(
-            # Add two learning rate schedulers to be applied in sequence.
-            _torch_lr_scheduler_classes=[
-                # Multiplies the learning rate by a factor of 0.1 for 10 iterations.
-                functools.partial(
-                    torch.optim.lr_scheduler.ConstantLR,
-                    factor=args.lr_const_factor,
-                    total_iters=args.lr_const_iters,
-                ),
-                # Decays the learning rate after each gradients step by
-                # `args.lr_exp_decay`.
-                functools.partial(
-                    torch.optim.lr_scheduler.ExponentialLR, gamma=args.lr_exp_decay
-                ),
-            ]
-        )
-        .callbacks(
-            LRChecker,
-        )
+config = (
+    PPOConfig()
+    .environment("CartPole-v1")
+    .training(
+        lr=0.03,
+        num_sgd_iter=6,
+        vf_loss_coeff=0.01,
     )
-
-    stop = {
-        f"{NUM_ENV_STEPS_SAMPLED_LIFETIME}": args.stop_timesteps,
-        f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": (
-            args.stop_reward
+    .rl_module(
+        model_config=DefaultModelConfig(
+            fcnet_hiddens=[32],
+            fcnet_activation="linear",
+            vf_share_layers=True,
         ),
-    }
+    )
+    .evaluation(
+        evaluation_num_env_runners=1,
+        evaluation_interval=1,
+        evaluation_parallel_to_training=True,
+        evaluation_config=PPOConfig.overrides(exploration=False),
+    )
+    .experimental(
+        # Add two learning rate schedulers to be applied in sequence.
+        _torch_lr_scheduler_classes=[
+            # Multiplies the learning rate by a factor of 0.1 for 10 iterations.
+            functools.partial(
+                torch.optim.lr_scheduler.ConstantLR,
+                factor=args.lr_const_factor,
+                total_iters=args.lr_const_iters,
+            ),
+            # Decays the learning rate after each gradients step by
+            # `args.lr_exp_decay`.
+            functools.partial(
+                torch.optim.lr_scheduler.ExponentialLR, gamma=args.lr_exp_decay
+            ),
+        ]
+    )
+    .callbacks(
+        LRChecker,
+    )
+)
 
-    if __name__ == "__main__":
-        from ray.rllib.utils.test_utils import run_rllib_example_script_experiment
+stop = {
+    f"{NUM_ENV_STEPS_SAMPLED_LIFETIME}": args.stop_timesteps,
+    f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": (
+        args.stop_reward
+    ),
+}
 
-        run_rllib_example_script_experiment(config, args, stop=stop)
+if __name__ == "__main__":
+    from ray.rllib.utils.test_utils import run_rllib_example_script_experiment
+
+    run_rllib_example_script_experiment(config, args, stop=stop)

@@ -84,44 +84,44 @@ parser = add_rllib_example_script_args(
     default_reward=150.0,
 )
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    if args.algo != "PPO":
-        raise ValueError("This example only supports PPO. Please use --algo=PPO.")
+if args.algo != "PPO":
+    raise ValueError("This example only supports PPO. Please use --algo=PPO.")
 
-    base_config = (
-        PPOConfig()
-        .environment(
-            env=ActionMaskEnv,
-            env_config={
-                "action_space": Discrete(100),
-                # This defines the 'original' observation space that is used in the
-                # `RLModule`. The environment will wrap this space into a
-                # `gym.spaces.Dict` together with an 'action_mask' that signals the
-                # `RLModule` to adapt the action distribution inputs for the underlying
-                # `DefaultPPORLModule`.
-                "observation_space": Box(-1.0, 1.0, (5,)),
-            },
-        )
-        .rl_module(
-            # We need to explicitly specify here RLModule to use and
-            # the catalog needed to build it.
-            rl_module_spec=RLModuleSpec(
-                module_class=ActionMaskingTorchRLModule,
-                model_config={
-                    "head_fcnet_hiddens": [64, 64],
-                    "head_fcnet_activation": "relu",
-                },
-            ),
-        )
-        .evaluation(
-            evaluation_num_env_runners=1,
-            evaluation_interval=1,
-            # Run evaluation parallel to training to speed up the example.
-            evaluation_parallel_to_training=True,
-        )
+base_config = (
+    PPOConfig()
+    .environment(
+        env=ActionMaskEnv,
+        env_config={
+            "action_space": Discrete(100),
+            # This defines the 'original' observation space that is used in the
+            # `RLModule`. The environment will wrap this space into a
+            # `gym.spaces.Dict` together with an 'action_mask' that signals the
+            # `RLModule` to adapt the action distribution inputs for the underlying
+            # `DefaultPPORLModule`.
+            "observation_space": Box(-1.0, 1.0, (5,)),
+        },
     )
+    .rl_module(
+        # We need to explicitly specify here RLModule to use and
+        # the catalog needed to build it.
+        rl_module_spec=RLModuleSpec(
+            module_class=ActionMaskingTorchRLModule,
+            model_config={
+                "head_fcnet_hiddens": [64, 64],
+                "head_fcnet_activation": "relu",
+            },
+        ),
+    )
+    .evaluation(
+        evaluation_num_env_runners=1,
+        evaluation_interval=1,
+        # Run evaluation parallel to training to speed up the example.
+        evaluation_parallel_to_training=True,
+    )
+)
 
+if __name__ == "__main__":
     # Run the example (with Tune).
     run_rllib_example_script_experiment(base_config, args)

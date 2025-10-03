@@ -55,37 +55,38 @@ from ray.tune.registry import register_env, get_trainable_cls
 
 parser = add_rllib_example_script_args(default_reward=7.0)
 
+args = parser.parse_args()
+
+assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
+
+register_env(
+    "grouped_twostep",
+    lambda config: TwoStepGameWithGroupedAgents(config),
+)
+
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("grouped_twostep")
+    .env_runners(
+        env_to_module_connector=lambda env, spaces,
+                                       device: FlattenObservations(
+            multi_agent=True
+        ),
+    )
+    .multi_agent(
+        policies={"p0"},
+        policy_mapping_fn=lambda aid, *a, **kw: "p0",
+    )
+    .rl_module(
+        rl_module_spec=MultiRLModuleSpec(
+            rl_module_specs={
+                "p0": RLModuleSpec(),
+            },
+        )
+    )
+)
+
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    assert args.num_agents == 2, "Must set --num-agents=2 when running this script!"
-
-    register_env(
-        "grouped_twostep",
-        lambda config: TwoStepGameWithGroupedAgents(config),
-    )
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("grouped_twostep")
-        .env_runners(
-            env_to_module_connector=lambda env, spaces, device: FlattenObservations(
-                multi_agent=True
-            ),
-        )
-        .multi_agent(
-            policies={"p0"},
-            policy_mapping_fn=lambda aid, *a, **kw: "p0",
-        )
-        .rl_module(
-            rl_module_spec=MultiRLModuleSpec(
-                rl_module_specs={
-                    "p0": RLModuleSpec(),
-                },
-            )
-        )
-    )
-
     run_rllib_example_script_experiment(base_config, args)

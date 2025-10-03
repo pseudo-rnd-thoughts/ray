@@ -68,48 +68,48 @@ parser.set_defaults(
     env="ale_py:ALE/Pong-v5",
 )
 
+args = parser.parse_args()
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+register_env(
+    "env",
+    lambda cfg: wrap_atari_for_new_api_stack(
+        gym.make(args.env, **cfg),
+        dim=42,  # <- need images to be "tiny" for our custom model
+        framestack=4,
+    ),
+)
 
-    register_env(
-        "env",
-        lambda cfg: wrap_atari_for_new_api_stack(
-            gym.make(args.env, **cfg),
-            dim=42,  # <- need images to be "tiny" for our custom model
-            framestack=4,
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(
+        env="env",
+        env_config=dict(
+            frameskip=1,
+            full_action_space=False,
+            repeat_action_probability=0.0,
         ),
     )
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(
-            env="env",
-            env_config=dict(
-                frameskip=1,
-                full_action_space=False,
-                repeat_action_probability=0.0,
-            ),
-        )
-        .rl_module(
-            # Plug-in our custom RLModule class.
-            rl_module_spec=RLModuleSpec(
-                module_class=TinyAtariCNN,
-                # Feel free to specify your own `model_config` settings below.
-                # The `model_config` defined here will be available inside your
-                # custom RLModule class through the `self.model_config`
-                # property.
-                model_config={
-                    "conv_filters": [
-                        # num filters, kernel wxh, stride wxh, padding type
-                        [16, 4, 2, "same"],
-                        [32, 4, 2, "same"],
-                        [256, 11, 1, "valid"],
-                    ],
-                },
-            ),
-        )
+    .rl_module(
+        # Plug-in our custom RLModule class.
+        rl_module_spec=RLModuleSpec(
+            module_class=TinyAtariCNN,
+            # Feel free to specify your own `model_config` settings below.
+            # The `model_config` defined here will be available inside your
+            # custom RLModule class through the `self.model_config`
+            # property.
+            model_config={
+                "conv_filters": [
+                    # num filters, kernel wxh, stride wxh, padding type
+                    [16, 4, 2, "same"],
+                    [32, 4, 2, "same"],
+                    [256, 11, 1, "valid"],
+                ],
+            },
+        ),
     )
+)
 
+
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

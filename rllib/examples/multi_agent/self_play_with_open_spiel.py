@@ -91,92 +91,93 @@ parser.add_argument(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    register_env("open_spiel_env", lambda _: OpenSpielEnv(pyspiel.load_game(args.env)))
+register_env("open_spiel_env", lambda _: OpenSpielEnv(pyspiel.load_game(args.env)))
 
-    def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
-        # agent_id = [0|1] -> module depends on episode ID
-        # This way, we make sure that both modules sometimes play agent0
-        # (start player) and sometimes agent1 (player to move 2nd).
-        return "main" if hash(episode.id_) % 2 == agent_id else "random"
+def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
+    # agent_id = [0|1] -> module depends on episode ID
+    # This way, we make sure that both modules sometimes play agent0
+    # (start player) and sometimes agent1 (player to move 2nd).
+    return "main" if hash(episode.id_) % 2 == agent_id else "random"
 
-    def policy_mapping_fn(agent_id, episode, worker, **kwargs):
-        # e.g. episode ID = 10234
-        # -> agent `0` -> main (b/c epsID % 2 == 0)
-        # -> agent `1` -> random (b/c epsID % 2 == 1)
-        return "main" if episode.episode_id % 2 == agent_id else "random"
+def policy_mapping_fn(agent_id, episode, worker, **kwargs):
+    # e.g. episode ID = 10234
+    # -> agent `0` -> main (b/c epsID % 2 == 0)
+    # -> agent `1` -> random (b/c epsID % 2 == 1)
+    return "main" if episode.episode_id % 2 == agent_id else "random"
 
-    config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("open_spiel_env")
-        # Set up the main piece in this experiment: The league-bases self-play
-        # callback, which controls adding new policies/Modules to the league and
-        # properly matching the different policies in the league with each other.
-        .callbacks(
-            functools.partial(
-                (
-                    SelfPlayCallback
-                    if not args.old_api_stack
-                    else SelfPlayCallbackOldAPIStack
-                ),
-                win_rate_threshold=args.win_rate_threshold,
-            )
-        )
-        .env_runners(
-            num_env_runners=(args.num_env_runners or 2),
-            num_envs_per_env_runner=1 if not args.old_api_stack else 5,
-        )
-        .multi_agent(
-            # Initial policy map: Random and default algo one. This will be expanded
-            # to more policy snapshots taken from "main" against which "main"
-            # will then play (instead of "random"). This is done in the
-            # custom callback defined above (`SelfPlayCallback`).
-            policies=(
-                {
-                    # Our main policy, we'd like to optimize.
-                    "main": PolicySpec(),
-                    # An initial random opponent to play against.
-                    "random": PolicySpec(policy_class=RandomPolicy),
-                }
-                if args.old_api_stack
-                else {"main", "random"}
-            ),
-            # Assign agent 0 and 1 randomly to the "main" policy or
-            # to the opponent ("random" at first). Make sure (via episode_id)
-            # that "main" always plays against "random" (and not against
-            # another "main").
-            policy_mapping_fn=(
-                agent_to_module_mapping_fn
+config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("open_spiel_env")
+    # Set up the main piece in this experiment: The league-bases self-play
+    # callback, which controls adding new policies/Modules to the league and
+    # properly matching the different policies in the league with each other.
+    .callbacks(
+        functools.partial(
+            (
+                SelfPlayCallback
                 if not args.old_api_stack
-                else policy_mapping_fn
+                else SelfPlayCallbackOldAPIStack
             ),
-            # Always just train the "main" policy.
-            policies_to_train=["main"],
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(fcnet_hiddens=[512, 512]),
-            rl_module_spec=MultiRLModuleSpec(
-                rl_module_specs={
-                    "main": RLModuleSpec(),
-                    "random": RLModuleSpec(module_class=RandomRLModule),
-                }
-            ),
+            win_rate_threshold=args.win_rate_threshold,
         )
     )
+    .env_runners(
+        num_env_runners=(args.num_env_runners or 2),
+        num_envs_per_env_runner=1 if not args.old_api_stack else 5,
+    )
+    .multi_agent(
+        # Initial policy map: Random and default algo one. This will be expanded
+        # to more policy snapshots taken from "main" against which "main"
+        # will then play (instead of "random"). This is done in the
+        # custom callback defined above (`SelfPlayCallback`).
+        policies=(
+            {
+                # Our main policy, we'd like to optimize.
+                "main": PolicySpec(),
+                # An initial random opponent to play against.
+                "random": PolicySpec(policy_class=RandomPolicy),
+            }
+            if args.old_api_stack
+            else {"main", "random"}
+        ),
+        # Assign agent 0 and 1 randomly to the "main" policy or
+        # to the opponent ("random" at first). Make sure (via episode_id)
+        # that "main" always plays against "random" (and not against
+        # another "main").
+        policy_mapping_fn=(
+            agent_to_module_mapping_fn
+            if not args.old_api_stack
+            else policy_mapping_fn
+        ),
+        # Always just train the "main" policy.
+        policies_to_train=["main"],
+    )
+    .rl_module(
+        model_config=DefaultModelConfig(fcnet_hiddens=[512, 512]),
+        rl_module_spec=MultiRLModuleSpec(
+            rl_module_specs={
+                "main": RLModuleSpec(),
+                "random": RLModuleSpec(module_class=RandomRLModule),
+            }
+        ),
+    )
+)
 
-    # Only for PPO, change the `num_epochs` setting.
-    if args.algo == "PPO":
-        config.training(num_epochs=20)
+# Only for PPO, change the `num_epochs` setting.
+if args.algo == "PPO":
+    config.training(num_epochs=20)
 
-    stop = {
-        NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
-        TRAINING_ITERATION: args.stop_iters,
-        "league_size": args.min_league_size,
-    }
+stop = {
+    NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
+    TRAINING_ITERATION: args.stop_iters,
+    "league_size": args.min_league_size,
+}
 
+
+if __name__ == "__main__":
     # Train the "main" policy to play really well using self-play.
     results = None
     if not args.from_checkpoint:

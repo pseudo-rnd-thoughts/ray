@@ -109,67 +109,67 @@ parser.add_argument(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Register our environment with tune.
-    if args.num_agents > 0:
-        tune.register_env("env", lambda cfg: MultiAgentCartPoleCrashing(cfg))
-    else:
-        tune.register_env(
-            "env",
-            lambda cfg: TimeLimit(CartPoleCrashing(cfg), max_episode_steps=500),
-        )
-
-    base_config = (
-        tune.registry.get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(
-            "env",
-            env_config={
-                "num_agents": args.num_agents,
-                # Probability to crash during step().
-                "p_crash": 0.0001,
-                # Probability to crash during reset().
-                "p_crash_reset": 0.001,
-                "crash_on_worker_indices": [1, 2],
-                "init_time_s": 2.0,
-                # Probability to stall during step().
-                "p_stall": 0.0005,
-                # Probability to stall during reset().
-                "p_stall_reset": 0.001,
-                # Stall from 2 to 5sec (or 0.0 if --stall not set).
-                "stall_time_sec": (2, 5) if args.stall else 0.0,
-                # EnvRunner indices to stall on.
-                "stall_on_worker_indices": [2, 3],
-            },
-        )
-        # Switch on resiliency.
-        .fault_tolerance(
-            # Recreate any failed EnvRunners.
-            restart_failed_env_runners=True,
-            # Restart any failed environment (w/o recreating the EnvRunner). Note that
-            # this is the much faster option.
-            restart_failed_sub_environments=args.restart_failed_envs,
-        )
+# Register our environment with tune.
+if args.num_agents > 0:
+    tune.register_env("env", lambda cfg: MultiAgentCartPoleCrashing(cfg))
+else:
+    tune.register_env(
+        "env",
+        lambda cfg: TimeLimit(CartPoleCrashing(cfg), max_episode_steps=500),
     )
 
-    # Use more stabilizing hyperparams for APPO.
-    if args.algo == "APPO":
-        base_config.training(
-            grad_clip=40.0,
-            entropy_coeff=0.0,
-            vf_loss_coeff=0.05,
-        )
-        base_config.rl_module(
-            model_config=DefaultModelConfig(vf_share_layers=True),
-        )
+base_config = (
+    tune.registry.get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(
+        "env",
+        env_config={
+            "num_agents": args.num_agents,
+            # Probability to crash during step().
+            "p_crash": 0.0001,
+            # Probability to crash during reset().
+            "p_crash_reset": 0.001,
+            "crash_on_worker_indices": [1, 2],
+            "init_time_s": 2.0,
+            # Probability to stall during step().
+            "p_stall": 0.0005,
+            # Probability to stall during reset().
+            "p_stall_reset": 0.001,
+            # Stall from 2 to 5sec (or 0.0 if --stall not set).
+            "stall_time_sec": (2, 5) if args.stall else 0.0,
+            # EnvRunner indices to stall on.
+            "stall_on_worker_indices": [2, 3],
+        },
+    )
+    # Switch on resiliency.
+    .fault_tolerance(
+        # Recreate any failed EnvRunners.
+        restart_failed_env_runners=True,
+        # Restart any failed environment (w/o recreating the EnvRunner). Note that
+        # this is the much faster option.
+        restart_failed_sub_environments=args.restart_failed_envs,
+    )
+)
 
-    # Add a simple multi-agent setup.
-    if args.num_agents > 0:
-        base_config.multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
-        )
+# Use more stabilizing hyperparams for APPO.
+if args.algo == "APPO":
+    base_config.training(
+        grad_clip=40.0,
+        entropy_coeff=0.0,
+        vf_loss_coeff=0.05,
+    )
+    base_config.rl_module(
+        model_config=DefaultModelConfig(vf_share_layers=True),
+    )
 
+# Add a simple multi-agent setup.
+if args.num_agents > 0:
+    base_config.multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
+    )
+
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args=args)

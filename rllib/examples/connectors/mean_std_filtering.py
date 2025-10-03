@@ -107,87 +107,87 @@ class LopsidedObs(gym.ObservationWrapper):
         return ((observation + 1.0) / 2.0) * (4000.0 - 1456.0) - 4000.0
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Register our environment with tune.
-    if args.num_agents > 0:
-        register_env(
-            "lopsided-pend",
-            lambda _: MultiAgentPendulum(config={"num_agents": args.num_agents}),
-        )
-    else:
-        register_env("lopsided-pend", lambda _: LopsidedObs(gym.make("Pendulum-v1")))
+# Register our environment with tune.
+if args.num_agents > 0:
+    register_env(
+        "lopsided-pend",
+        lambda _: MultiAgentPendulum(config={"num_agents": args.num_agents}),
+    )
+else:
+    register_env("lopsided-pend", lambda _: LopsidedObs(gym.make("Pendulum-v1")))
 
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("lopsided-pend")
-        .env_runners(
-            num_envs_per_env_runner=1 if args.num_agents > 0 else 20,
-            # Define a single connector piece to be prepended to the env-to-module
-            # connector pipeline.
-            # Alternatively, return a list of n ConnectorV2 pieces (which will then be
-            # included in an automatically generated EnvToModulePipeline or return a
-            # EnvToModulePipeline directly.
-            env_to_module_connector=(
-                None
-                if args.disable_mean_std_filter
-                else lambda env, spaces, device: (
-                    MeanStdFilter(multi_agent=args.num_agents > 0)
-                )
-            ),
-        )
-        .training(
-            train_batch_size_per_learner=512,
-            gamma=0.95,
-            # Linearly adjust learning rate based on number of GPUs.
-            lr=0.0003 * (args.num_learners or 1),
-            vf_loss_coeff=0.01,
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(
-                fcnet_activation="relu",
-                fcnet_kernel_initializer=torch.nn.init.xavier_uniform_,
-                fcnet_bias_initializer=torch.nn.init.constant_,
-                fcnet_bias_initializer_kwargs={"val": 0.0},
-            ),
-        )
-        # In case you would like to run with a evaluation EnvRunners, make sure your
-        # `evaluation_config` key contains the `use_worker_filter_stats=False` setting
-        # (see below). This setting makes sure that the mean/std stats collected by the
-        # evaluation EnvRunners are NOT used for the training EnvRunners (unless you
-        # really want to mix these stats). It's normally a good idea to keep the stats
-        # collected during evaluation completely out of the training data (already for
-        # better reproducibility alone).
-        # .evaluation(
-        #    evaluation_num_env_runners=1,
-        #    evaluation_interval=1,
-        #    evaluation_config={
-        #        "explore": False,
-        #        # Do NOT use the eval EnvRunners' ConnectorV2 states. Instead, before
-        #        # each round of evaluation, broadcast the latest training
-        #        # EnvRunnerGroup's ConnectorV2 states (merged from all training remote
-        #        # EnvRunners) to the eval EnvRunnerGroup (and discard the eval
-        #        # EnvRunners' stats).
-        #        "use_worker_filter_stats": False,
-        #    },
-        # )
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("lopsided-pend")
+    .env_runners(
+        num_envs_per_env_runner=1 if args.num_agents > 0 else 20,
+        # Define a single connector piece to be prepended to the env-to-module
+        # connector pipeline.
+        # Alternatively, return a list of n ConnectorV2 pieces (which will then be
+        # included in an automatically generated EnvToModulePipeline or return a
+        # EnvToModulePipeline directly.
+        env_to_module_connector=(
+            None
+            if args.disable_mean_std_filter
+            else lambda env, spaces, device: (
+                MeanStdFilter(multi_agent=args.num_agents > 0)
+            )
+        ),
+    )
+    .training(
+        train_batch_size_per_learner=512,
+        gamma=0.95,
+        # Linearly adjust learning rate based on number of GPUs.
+        lr=0.0003 * (args.num_learners or 1),
+        vf_loss_coeff=0.01,
+    )
+    .rl_module(
+        model_config=DefaultModelConfig(
+            fcnet_activation="relu",
+            fcnet_kernel_initializer=torch.nn.init.xavier_uniform_,
+            fcnet_bias_initializer=torch.nn.init.constant_,
+            fcnet_bias_initializer_kwargs={"val": 0.0},
+        ),
+    )
+    # In case you would like to run with a evaluation EnvRunners, make sure your
+    # `evaluation_config` key contains the `use_worker_filter_stats=False` setting
+    # (see below). This setting makes sure that the mean/std stats collected by the
+    # evaluation EnvRunners are NOT used for the training EnvRunners (unless you
+    # really want to mix these stats). It's normally a good idea to keep the stats
+    # collected during evaluation completely out of the training data (already for
+    # better reproducibility alone).
+    # .evaluation(
+    #    evaluation_num_env_runners=1,
+    #    evaluation_interval=1,
+    #    evaluation_config={
+    #        "explore": False,
+    #        # Do NOT use the eval EnvRunners' ConnectorV2 states. Instead, before
+    #        # each round of evaluation, broadcast the latest training
+    #        # EnvRunnerGroup's ConnectorV2 states (merged from all training remote
+    #        # EnvRunners) to the eval EnvRunnerGroup (and discard the eval
+    #        # EnvRunners' stats).
+    #        "use_worker_filter_stats": False,
+    #    },
+    # )
+)
+
+# PPO specific settings.
+if args.algo == "PPO":
+    base_config.training(
+        minibatch_size=64,
+        lambda_=0.1,
+        vf_clip_param=10.0,
     )
 
-    # PPO specific settings.
-    if args.algo == "PPO":
-        base_config.training(
-            minibatch_size=64,
-            lambda_=0.1,
-            vf_clip_param=10.0,
-        )
+# Add a simple multi-agent setup.
+if args.num_agents > 0:
+    base_config.multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
+    )
 
-    # Add a simple multi-agent setup.
-    if args.num_agents > 0:
-        base_config.multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
-        )
-
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

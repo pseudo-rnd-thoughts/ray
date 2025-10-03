@@ -165,85 +165,86 @@ class AssertEvalCallback(RLlibCallback):
                 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Register our environment with tune.
-    if args.num_agents > 0:
-        register_env(
-            "env",
-            lambda _: MultiAgentCartPole(config={"num_agents": args.num_agents}),
-        )
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("env" if args.num_agents > 0 else "CartPole-v1")
-        .env_runners(create_env_on_local_worker=True)
-        # Use a custom callback that asserts that we are running the
-        # configured exact number of episodes per evaluation OR - in auto
-        # mode - run at least as many episodes as we have eval workers.
-        .callbacks(AssertEvalCallback)
-        .evaluation(
-            # Parallel evaluation+training config.
-            # Switch on evaluation in parallel with training.
-            evaluation_parallel_to_training=args.evaluation_parallel_to_training,
-            # Use two evaluation workers. Must be >0, otherwise,
-            # evaluation will run on a local worker and block (no parallelism).
-            evaluation_num_env_runners=args.evaluation_num_env_runners,
-            # Evaluate every other training iteration (together
-            # with every other call to Algorithm.train()).
-            evaluation_interval=args.evaluation_interval,
-            # Run for n episodes/timesteps (properly distribute load amongst
-            # all eval workers). The longer it takes to evaluate, the more sense
-            # it makes to use `evaluation_parallel_to_training=True`.
-            # Use "auto" to run evaluation for roughly as long as the training
-            # step takes.
-            evaluation_duration=args.evaluation_duration,
-            # "episodes" or "timesteps".
-            evaluation_duration_unit=args.evaluation_duration_unit,
-            # Switch off exploratory behavior for better (greedy) results.
-            evaluation_config={
-                "explore": False,
-                # TODO (sven): Add support for window=float(inf) and reduce=mean for
-                #  evaluation episode_return_mean reductions (identical to old stack
-                #  behavior, which does NOT use a window (100 by default) to reduce
-                #  eval episode returns.
-                "metrics_num_episodes_for_smoothing": 5,
-            },
-        )
+# Register our environment with tune.
+if args.num_agents > 0:
+    register_env(
+        "env",
+        lambda _: MultiAgentCartPole(config={"num_agents": args.num_agents}),
     )
 
-    # Set the minimum time for an iteration to 10sec, even for algorithms like PPO
-    # that naturally limit their iteration times to exactly one `training_step`
-    # call. This provides enough time for the eval EnvRunners in the
-    # "evaluation_duration=auto" setting to sample at least one complete episode.
-    if args.evaluation_duration == "auto":
-        base_config.reporting(min_time_s_per_iteration=10)
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("env" if args.num_agents > 0 else "CartPole-v1")
+    .env_runners(create_env_on_local_worker=True)
+    # Use a custom callback that asserts that we are running the
+    # configured exact number of episodes per evaluation OR - in auto
+    # mode - run at least as many episodes as we have eval workers.
+    .callbacks(AssertEvalCallback)
+    .evaluation(
+        # Parallel evaluation+training config.
+        # Switch on evaluation in parallel with training.
+        evaluation_parallel_to_training=args.evaluation_parallel_to_training,
+        # Use two evaluation workers. Must be >0, otherwise,
+        # evaluation will run on a local worker and block (no parallelism).
+        evaluation_num_env_runners=args.evaluation_num_env_runners,
+        # Evaluate every other training iteration (together
+        # with every other call to Algorithm.train()).
+        evaluation_interval=args.evaluation_interval,
+        # Run for n episodes/timesteps (properly distribute load amongst
+        # all eval workers). The longer it takes to evaluate, the more sense
+        # it makes to use `evaluation_parallel_to_training=True`.
+        # Use "auto" to run evaluation for roughly as long as the training
+        # step takes.
+        evaluation_duration=args.evaluation_duration,
+        # "episodes" or "timesteps".
+        evaluation_duration_unit=args.evaluation_duration_unit,
+        # Switch off exploratory behavior for better (greedy) results.
+        evaluation_config={
+            "explore": False,
+            # TODO (sven): Add support for window=float(inf) and reduce=mean for
+            #  evaluation episode_return_mean reductions (identical to old stack
+            #  behavior, which does NOT use a window (100 by default) to reduce
+            #  eval episode returns.
+            "metrics_num_episodes_for_smoothing": 5,
+        },
+    )
+)
 
-    # Add a simple multi-agent setup.
-    if args.num_agents > 0:
-        base_config.multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
-        )
-    # Set some PPO-specific tuning settings to learn better in the env (assumed to be
-    # CartPole-v1).
-    if args.algo == "PPO":
-        base_config.training(
-            lr=0.0003,
-            num_epochs=6,
-            vf_loss_coeff=0.01,
-        )
+# Set the minimum time for an iteration to 10sec, even for algorithms like PPO
+# that naturally limit their iteration times to exactly one `training_step`
+# call. This provides enough time for the eval EnvRunners in the
+# "evaluation_duration=auto" setting to sample at least one complete episode.
+if args.evaluation_duration == "auto":
+    base_config.reporting(min_time_s_per_iteration=10)
 
-    stop = {
-        TRAINING_ITERATION: args.stop_iters,
-        f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": (
-            args.stop_reward
-        ),
-        NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
-    }
+# Add a simple multi-agent setup.
+if args.num_agents > 0:
+    base_config.multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
+    )
+# Set some PPO-specific tuning settings to learn better in the env (assumed to be
+# CartPole-v1).
+if args.algo == "PPO":
+    base_config.training(
+        lr=0.0003,
+        num_epochs=6,
+        vf_loss_coeff=0.01,
+    )
 
+stop = {
+    TRAINING_ITERATION: args.stop_iters,
+    f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": (
+        args.stop_reward
+    ),
+    NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
+}
+
+
+if __name__ == "__main__":
     run_rllib_example_script_experiment(
         base_config,
         args,

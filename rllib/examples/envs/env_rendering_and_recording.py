@@ -241,62 +241,64 @@ class EnvRenderCallback(RLlibCallback):
             self.worst_episode_and_return = (None, float("inf"))
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Register our environment with tune.
-    def _env_creator(cfg):
-        cfg.update({"render_mode": "rgb_array"})
-        if args.env.startswith("ale_py:ALE/"):
-            cfg.update(
-                {
-                    # Make analogous to old v4 + NoFrameskip.
-                    "frameskip": 1,
-                    "full_action_space": False,
-                    "repeat_action_probability": 0.0,
-                }
-            )
-            return wrap_atari_for_new_api_stack(gym.make(args.env, **cfg), framestack=4)
-        else:
-            return gym.make(args.env, **cfg)
-
-    register_env("env", _env_creator)
-
-    base_config = (
-        get_trainable_cls(args.algo).get_default_config()
-        # Use the above-registered environment.
-        .environment("env")
-        # Plug in our custom callback that controls, which videos are created (best,
-        # and worst per sampling cycle per EnvRunner) and then logged via the
-        # `MetricsLogger` API.
-        .callbacks(EnvRenderCallback)
-        # Switch off RLlib's logging to avoid having the large videos show up in any log
-        # files.
-        .debugging(logger_config={"type": tune.logger.NoopLogger})
-        # The following settings are beneficial for Atari-type environments. Feel free
-        # to adjust these when providing a non-Atari `--env` option.
-        .training(
-            lambda_=0.95,
-            kl_coeff=0.5,
-            clip_param=0.1,
-            vf_clip_param=10.0,
-            entropy_coeff=0.01,
-            num_epochs=10,
-            # Linearly adjust learning rate based on number of GPUs.
-            lr=0.00015 * (args.num_learners or 1),
-            grad_clip=100.0,
-            grad_clip_by="global_norm",
+# Register our environment with tune.
+def _env_creator(cfg):
+    cfg.update({"render_mode": "rgb_array"})
+    if args.env.startswith("ale_py:ALE/"):
+        cfg.update(
+            {
+                # Make analogous to old v4 + NoFrameskip.
+                "frameskip": 1,
+                "full_action_space": False,
+                "repeat_action_probability": 0.0,
+            }
         )
+        return wrap_atari_for_new_api_stack(gym.make(args.env, **cfg), framestack=4)
+    else:
+        return gym.make(args.env, **cfg)
+
+
+register_env("env", _env_creator)
+
+base_config = (
+    get_trainable_cls(args.algo).get_default_config()
+    # Use the above-registered environment.
+    .environment("env")
+    # Plug in our custom callback that controls, which videos are created (best,
+    # and worst per sampling cycle per EnvRunner) and then logged via the
+    # `MetricsLogger` API.
+    .callbacks(EnvRenderCallback)
+    # Switch off RLlib's logging to avoid having the large videos show up in any log
+    # files.
+    .debugging(logger_config={"type": tune.logger.NoopLogger})
+    # The following settings are beneficial for Atari-type environments. Feel free
+    # to adjust these when providing a non-Atari `--env` option.
+    .training(
+        lambda_=0.95,
+        kl_coeff=0.5,
+        clip_param=0.1,
+        vf_clip_param=10.0,
+        entropy_coeff=0.01,
+        num_epochs=10,
+        # Linearly adjust learning rate based on number of GPUs.
+        lr=0.00015 * (args.num_learners or 1),
+        grad_clip=100.0,
+        grad_clip_by="global_norm",
+    )
+)
+
+if base_config.is_atari:
+    base_config.rl_module(
+        model_config=DefaultModelConfig(
+            conv_filters=[[16, 4, 2], [32, 4, 2], [64, 4, 2], [128, 4, 2]],
+            conv_activation="relu",
+            head_fcnet_hiddens=[256],
+            vf_share_layers=True,
+        ),
     )
 
-    if base_config.is_atari:
-        base_config.rl_module(
-            model_config=DefaultModelConfig(
-                conv_filters=[[16, 4, 2], [32, 4, 2], [64, 4, 2], [128, 4, 2]],
-                conv_activation="relu",
-                head_fcnet_hiddens=[256],
-                vf_share_layers=True,
-            ),
-        )
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

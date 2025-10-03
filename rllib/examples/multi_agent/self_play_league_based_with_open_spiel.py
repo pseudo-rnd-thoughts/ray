@@ -103,108 +103,107 @@ parser.add_argument(
     "Algorithm state.",
 )
 
+args = parser.parse_args()
+
+register_env(
+    "open_spiel_env",
+    lambda _: OpenSpielEnv(pyspiel.load_game(args.env)),
+)
+
+def policy_mapping_fn(agent_id, episode, worker=None, **kwargs):
+    # At first, only have main play against the random main exploiter.
+    return "main" if episode.episode_id % 2 == agent_id else "main_exploiter_0"
+
+def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
+    # At first, only have main play against the random main exploiter.
+    return "main" if hash(episode.id_) % 2 == agent_id else "main_exploiter_0"
+
+def _get_multi_agent():
+    names = {
+        # Our main policy, we'd like to optimize.
+        "main",
+        # First frozen version of main (after we reach n% win-rate).
+        "main_0",
+        # Initial main exploiters (one random, one trainable).
+        "main_exploiter_0",
+        "main_exploiter_1",
+        # Initial league exploiters (one random, one trainable).
+        "league_exploiter_0",
+        "league_exploiter_1",
+    }
+    if not args.old_api_stack:
+        policies = names
+        spec = {
+            mid: RLModuleSpec(
+                module_class=(
+                    RandomRLModule
+                    if mid in ["main_exploiter_0", "league_exploiter_0"]
+                    else None
+                ),
+                model_config=DefaultModelConfig(
+                    fcnet_hiddens=[1024, 1024],
+                    # fcnet_activation="tanh",
+                ),
+            )
+            for mid in names
+        }
+    else:
+        policies = {
+            mid: PolicySpec(
+                policy_class=(
+                    RandomPolicy
+                    if mid in ["main_exploiter_0", "league_exploiter_0"]
+                    else None
+                )
+            )
+            for mid in names
+        }
+        spec = None
+    return {"policies": policies, "spec": spec}
+
+config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("open_spiel_env")
+    # Set up the main piece in this experiment: The league-bases self-play
+    # callback, which controls adding new policies/Modules to the league and
+    # properly matching the different policies in the league with each other.
+    .callbacks(
+        functools.partial(
+            SelfPlayLeagueBasedCallback
+            if not args.old_api_stack
+            else SelfPlayLeagueBasedCallbackOldAPIStack,
+            win_rate_threshold=args.win_rate_threshold,
+        )
+    )
+    .env_runners(
+        num_envs_per_env_runner=1 if not args.old_api_stack else 5,
+    )
+    .training(
+        num_epochs=20,
+    )
+    .multi_agent(
+        # Initial policy map: All PPO. This will be expanded
+        # to more policy snapshots. This is done in the
+        # custom callback defined above (`LeagueBasedSelfPlayCallback`).
+        policies=_get_multi_agent()["policies"],
+        policy_mapping_fn=(
+            agent_to_module_mapping_fn
+            if not args.old_api_stack
+            else policy_mapping_fn
+        ),
+        # At first, only train main_0 (until good enough to win against
+        # random).
+        policies_to_train=["main"],
+    )
+    .rl_module(
+        rl_module_spec=MultiRLModuleSpec(
+            rl_module_specs=_get_multi_agent()["spec"]
+        ),
+    )
+)
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-
-    register_env(
-        "open_spiel_env",
-        lambda _: OpenSpielEnv(pyspiel.load_game(args.env)),
-    )
-
-    def policy_mapping_fn(agent_id, episode, worker=None, **kwargs):
-        # At first, only have main play against the random main exploiter.
-        return "main" if episode.episode_id % 2 == agent_id else "main_exploiter_0"
-
-    def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
-        # At first, only have main play against the random main exploiter.
-        return "main" if hash(episode.id_) % 2 == agent_id else "main_exploiter_0"
-
-    def _get_multi_agent():
-        names = {
-            # Our main policy, we'd like to optimize.
-            "main",
-            # First frozen version of main (after we reach n% win-rate).
-            "main_0",
-            # Initial main exploiters (one random, one trainable).
-            "main_exploiter_0",
-            "main_exploiter_1",
-            # Initial league exploiters (one random, one trainable).
-            "league_exploiter_0",
-            "league_exploiter_1",
-        }
-        if not args.old_api_stack:
-            policies = names
-            spec = {
-                mid: RLModuleSpec(
-                    module_class=(
-                        RandomRLModule
-                        if mid in ["main_exploiter_0", "league_exploiter_0"]
-                        else None
-                    ),
-                    model_config=DefaultModelConfig(
-                        fcnet_hiddens=[1024, 1024],
-                        # fcnet_activation="tanh",
-                    ),
-                )
-                for mid in names
-            }
-        else:
-            policies = {
-                mid: PolicySpec(
-                    policy_class=(
-                        RandomPolicy
-                        if mid in ["main_exploiter_0", "league_exploiter_0"]
-                        else None
-                    )
-                )
-                for mid in names
-            }
-            spec = None
-        return {"policies": policies, "spec": spec}
-
-    config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("open_spiel_env")
-        # Set up the main piece in this experiment: The league-bases self-play
-        # callback, which controls adding new policies/Modules to the league and
-        # properly matching the different policies in the league with each other.
-        .callbacks(
-            functools.partial(
-                SelfPlayLeagueBasedCallback
-                if not args.old_api_stack
-                else SelfPlayLeagueBasedCallbackOldAPIStack,
-                win_rate_threshold=args.win_rate_threshold,
-            )
-        )
-        .env_runners(
-            num_envs_per_env_runner=1 if not args.old_api_stack else 5,
-        )
-        .training(
-            num_epochs=20,
-        )
-        .multi_agent(
-            # Initial policy map: All PPO. This will be expanded
-            # to more policy snapshots. This is done in the
-            # custom callback defined above (`LeagueBasedSelfPlayCallback`).
-            policies=_get_multi_agent()["policies"],
-            policy_mapping_fn=(
-                agent_to_module_mapping_fn
-                if not args.old_api_stack
-                else policy_mapping_fn
-            ),
-            # At first, only train main_0 (until good enough to win against
-            # random).
-            policies_to_train=["main"],
-        )
-        .rl_module(
-            rl_module_spec=MultiRLModuleSpec(
-                rl_module_specs=_get_multi_agent()["spec"]
-            ),
-        )
-    )
-
     # Run everything as configured.
     # Train the "main" policy to play really well using self-play.
     results = None

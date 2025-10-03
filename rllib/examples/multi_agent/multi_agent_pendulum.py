@@ -38,40 +38,39 @@ parser.add_argument(
 )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    # Register our environment with tune.
-    if args.num_agents > 0:
-        register_env(
-            "env",
-            lambda _: MultiAgentPendulum(config={"num_agents": args.num_agents}),
-        )
-
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment("env" if args.num_agents > 0 else "Pendulum-v1")
-        .training(
-            train_batch_size_per_learner=512,
-            minibatch_size=64,
-            lambda_=0.1,
-            gamma=0.95,
-            lr=0.0003,
-            model={"fcnet_activation": "relu"},
-            vf_clip_param=10.0,
-        )
-        .rl_module(
-            model_config=DefaultModelConfig(fcnet_activation="relu"),
-        )
+# Register our environment with tune.
+if args.num_agents > 0:
+    register_env(
+        "env",
+        lambda _: MultiAgentPendulum(config={"num_agents": args.num_agents}),
     )
 
-    # Add a simple multi-agent setup.
-    if args.num_agents > 0:
-        base_config.multi_agent(
-            policies={f"p{i}" for i in range(args.num_agents)},
-            policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
-        )
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment("env" if args.num_agents > 0 else "Pendulum-v1")
+    .training(
+        train_batch_size_per_learner=512,
+        minibatch_size=64,
+        lambda_=0.1,
+        gamma=0.95,
+        lr=0.0003,
+        model={"fcnet_activation": "relu"},
+        vf_clip_param=10.0,
+    )
+    .rl_module(
+        model_config=DefaultModelConfig(fcnet_activation="relu"),
+    )
+)
 
-    # Augment
+# Add a simple multi-agent setup.
+if args.num_agents > 0:
+    base_config.multi_agent(
+        policies={f"p{i}" for i in range(args.num_agents)},
+        policy_mapping_fn=lambda aid, *a, **kw: f"p{aid}",
+    )
+
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

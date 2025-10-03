@@ -204,46 +204,46 @@ class EnvTaskCallback(RLlibCallback):
             algorithm._counters["current_env_task"] = 0
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        # Plug in our curriculum callbacks that controls when we should upgrade the env
-        # task based on the received return for the current task.
-        .callbacks(EnvTaskCallback)
-        .environment(
-            "FrozenLake-v1",
-            env_config={
-                # w/ curriculum: start with task=0 (easiest)
-                # w/o curriculum: start directly with hardest task 2.
-                "desc": ENV_MAPS[2 if args.no_curriculum else 0],
-                **ENV_OPTIONS,
-            },
-        )
-        .env_runners(
-            num_envs_per_env_runner=5,
-            env_to_module_connector=lambda env, spaces, device: FlattenObservations(),
-        )
-        .training(
-            num_epochs=6,
-            vf_loss_coeff=0.01,
-            lr=0.0002,
-        )
-        .rl_module(model_config=DefaultModelConfig(vf_share_layers=True))
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    # Plug in our curriculum callbacks that controls when we should upgrade the env
+    # task based on the received return for the current task.
+    .callbacks(EnvTaskCallback)
+    .environment(
+        "FrozenLake-v1",
+        env_config={
+            # w/ curriculum: start with task=0 (easiest)
+            # w/o curriculum: start directly with hardest task 2.
+            "desc": ENV_MAPS[2 if args.no_curriculum else 0],
+            **ENV_OPTIONS,
+        },
     )
+    .env_runners(
+        num_envs_per_env_runner=5,
+        env_to_module_connector=lambda env, spaces, device: FlattenObservations(),
+    )
+    .training(
+        num_epochs=6,
+        vf_loss_coeff=0.01,
+        lr=0.0002,
+    )
+    .rl_module(model_config=DefaultModelConfig(vf_share_layers=True))
+)
 
-    stop = {
-        TRAINING_ITERATION: args.stop_iters,
-        # Reward directly does not matter to us as we would like to continue
-        # after the policy reaches a return of ~1.0 on the 0-task (easiest).
-        # But we DO want to stop, once the entire task is learned (policy achieves
-        # return of 1.0 on the most difficult task=2).
-        "task_solved": 1.0,
-        NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
-    }
+stop = {
+    TRAINING_ITERATION: args.stop_iters,
+    # Reward directly does not matter to us as we would like to continue
+    # after the policy reaches a return of ~1.0 on the 0-task (easiest).
+    # But we DO want to stop, once the entire task is learned (policy achieves
+    # return of 1.0 on the most difficult task=2).
+    "task_solved": 1.0,
+    NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
+}
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(
         base_config, args, stop=stop, success_metric={"task_solved": 1.0}
     )

@@ -168,56 +168,57 @@ def custom_eval_function(
     return eval_results, env_steps, agent_steps
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
-    args.local_mode = True
-    base_config = (
-        get_trainable_cls(args.algo)
-        .get_default_config()
-        # For training, we use a corridor length of n. For evaluation, we use different
-        # values, depending on the eval worker index (1 or 2).
-        .environment(
-            SimpleCorridor,
-            env_config={"corridor_length": args.corridor_length_training},
-        )
-        .env_runners(create_env_on_local_worker=True)
-        .evaluation(
-            # Do we use the custom eval function defined above?
-            custom_evaluation_function=(
-                None if args.no_custom_eval else custom_eval_function
-            ),
-            # Number of eval EnvRunners to use.
-            evaluation_num_env_runners=2,
-            # Enable evaluation, once per training iteration.
-            evaluation_interval=1,
-            # Run 10 episodes each time evaluation runs (OR "auto" if parallel to
-            # training).
-            evaluation_duration="auto" if args.evaluation_parallel_to_training else 10,
-            # Evaluate parallelly to training?
-            evaluation_parallel_to_training=args.evaluation_parallel_to_training,
-            # Override the env settings for the eval workers.
-            # Note, though, that this setting here is only used in case --no-custom-eval
-            # is set, b/c in case the custom eval function IS used, we override the
-            # length of the eval environments in that custom function, so this setting
-            # here is simply ignored.
-            evaluation_config=AlgorithmConfig.overrides(
-                env_config={"corridor_length": args.corridor_length_training * 2},
-                # TODO (sven): Add support for window=float(inf) and reduce=mean for
-                #  evaluation episode_return_mean reductions (identical to old stack
-                #  behavior, which does NOT use a window (100 by default) to reduce
-                #  eval episode returns.
-                metrics_num_episodes_for_smoothing=5,
-            ),
-        )
+args = parser.parse_args()
+base_config = (
+    get_trainable_cls(args.algo)
+    .get_default_config()
+    # For training, we use a corridor length of n. For evaluation, we use different
+    # values, depending on the eval worker index (1 or 2).
+    .environment(
+        SimpleCorridor,
+        env_config={"corridor_length": args.corridor_length_training},
     )
-
-    stop = {
-        TRAINING_ITERATION: args.stop_iters,
-        f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": (
-            args.stop_reward
+    .env_runners(create_env_on_local_worker=True)
+    .evaluation(
+        # Do we use the custom eval function defined above?
+        custom_evaluation_function=(
+            None if args.no_custom_eval else custom_eval_function
         ),
-        NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
-    }
+        # Number of eval EnvRunners to use.
+        evaluation_num_env_runners=2,
+        # Enable evaluation, once per training iteration.
+        evaluation_interval=1,
+        # Run 10 episodes each time evaluation runs (OR "auto" if parallel to
+        # training).
+        evaluation_duration="auto" if args.evaluation_parallel_to_training else 10,
+        # Evaluate parallelly to training?
+        evaluation_parallel_to_training=args.evaluation_parallel_to_training,
+        # Override the env settings for the eval workers.
+        # Note, though, that this setting here is only used in case --no-custom-eval
+        # is set, b/c in case the custom eval function IS used, we override the
+        # length of the eval environments in that custom function, so this setting
+        # here is simply ignored.
+        evaluation_config=AlgorithmConfig.overrides(
+            env_config={"corridor_length": args.corridor_length_training * 2},
+            # TODO (sven): Add support for window=float(inf) and reduce=mean for
+            #  evaluation episode_return_mean reductions (identical to old stack
+            #  behavior, which does NOT use a window (100 by default) to reduce
+            #  eval episode returns.
+            metrics_num_episodes_for_smoothing=5,
+        ),
+    )
+)
+
+stop = {
+    TRAINING_ITERATION: args.stop_iters,
+    f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": (
+        args.stop_reward
+    ),
+    NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
+}
+
+if __name__ == "__main__":
+    args.local_mode = True
 
     run_rllib_example_script_experiment(
         base_config,

@@ -60,20 +60,21 @@ from ray.tune.registry import get_trainable_cls
 parser = add_rllib_example_script_args(default_timesteps=200000, default_reward=400.0)
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    base_config = (
-        get_trainable_cls(args.algo).get_default_config()
-        # Set up the env to be CartPole-v1, but with protobuf observations.
-        .environment(CartPoleWithProtobufObservationSpace)
-        # Plugin our custom ConnectorV2 piece to translate protobuf observations
-        # (box of dtype uint8) into NN-readible ones (1D tensor of dtype flaot32).
-        .env_runners(
-            env_to_module_connector=(
-                lambda env, spaces, device: ProtobufCartPoleObservationDecoder()
-            ),
-        )
+base_config = (
+    get_trainable_cls(args.algo).get_default_config()
+    # Set up the env to be CartPole-v1, but with protobuf observations.
+    .environment(CartPoleWithProtobufObservationSpace)
+    # Plugin our custom ConnectorV2 piece to translate protobuf observations
+    # (box of dtype uint8) into NN-readible ones (1D tensor of dtype flaot32).
+    .env_runners(
+        env_to_module_connector=(
+            lambda env, spaces, device: ProtobufCartPoleObservationDecoder()
+        ),
     )
+)
 
+
+if __name__ == "__main__":
     run_rllib_example_script_experiment(base_config, args)

@@ -180,130 +180,129 @@ class MeasureMaxDistanceToStart(RLlibCallback):
         )
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    if args.algo not in ["DQN", "PPO"]:
-        raise ValueError(
-            "Curiosity example only implemented for either DQN or PPO! See the "
-        )
+if args.algo not in ["DQN", "PPO"]:
+    raise ValueError("Curiosity example only implemented for either DQN or PPO!")
 
-    base_config = (
-        tune.registry.get_trainable_cls(args.algo)
-        .get_default_config()
-        .environment(
-            "FrozenLake-v1",
-            env_config={
-                # Use a 12x12 map.
-                "desc": [
-                    "SFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFF",
-                    "FFFFFFFFFFFG",
-                ],
-                "is_slippery": False,
-                # Limit the number of steps the agent is allowed to make in the env to
-                # make it almost impossible to learn without the curriculum.
-                "max_episode_steps": 22,
-            },
-        )
-        .callbacks(MeasureMaxDistanceToStart)
-        .env_runners(
-            num_envs_per_env_runner=5 if args.algo == "PPO" else 1,
-            env_to_module_connector=lambda env, spaces, device: FlattenObservations(),
-        )
-        .training(
-            learner_config_dict={
-                # Intrinsic reward coefficient.
-                "intrinsic_reward_coeff": 0.05,
-                # Forward loss weight (vs inverse dynamics loss). Total ICM loss is:
-                # L(total ICM) = (
-                #     `forward_loss_weight` * L(forward)
-                #     + (1.0 - `forward_loss_weight`) * L(inverse_dyn)
-                # )
-                "forward_loss_weight": 0.2,
+base_config = (
+    tune.registry.get_trainable_cls(args.algo)
+    .get_default_config()
+    .environment(
+        "FrozenLake-v1",
+        env_config={
+            # Use a 12x12 map.
+            "desc": [
+                "SFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFF",
+                "FFFFFFFFFFFG",
+            ],
+            "is_slippery": False,
+            # Limit the number of steps the agent is allowed to make in the env to
+            # make it almost impossible to learn without the curriculum.
+            "max_episode_steps": 22,
+        },
+    )
+    .callbacks(MeasureMaxDistanceToStart)
+    .env_runners(
+        num_envs_per_env_runner=5 if args.algo == "PPO" else 1,
+        env_to_module_connector=lambda env, spaces, device: FlattenObservations(),
+    )
+    .training(
+        learner_config_dict={
+            # Intrinsic reward coefficient.
+            "intrinsic_reward_coeff": 0.05,
+            # Forward loss weight (vs inverse dynamics loss). Total ICM loss is:
+            # L(total ICM) = (
+            #     `forward_loss_weight` * L(forward)
+            #     + (1.0 - `forward_loss_weight`) * L(inverse_dyn)
+            # )
+            "forward_loss_weight": 0.2,
+        }
+    )
+    .rl_module(
+        rl_module_spec=MultiRLModuleSpec(
+            rl_module_specs={
+                # The "main" RLModule (policy) to be trained by our algo.
+                DEFAULT_MODULE_ID: RLModuleSpec(
+                    **(
+                        {"model_config": {"vf_share_layers": True}}
+                        if args.algo == "PPO"
+                        else {}
+                    ),
+                ),
+                # The intrinsic curiosity model.
+                ICM_MODULE_ID: RLModuleSpec(
+                    module_class=IntrinsicCuriosityModel,
+                    # Only create the ICM on the Learner workers, NOT on the
+                    # EnvRunners.
+                    learner_only=True,
+                    # Configure the architecture of the ICM here.
+                    model_config={
+                        "feature_dim": 288,
+                        "feature_net_hiddens": (256, 256),
+                        "feature_net_activation": "relu",
+                        "inverse_net_hiddens": (256, 256),
+                        "inverse_net_activation": "relu",
+                        "forward_net_hiddens": (256, 256),
+                        "forward_net_activation": "relu",
+                    },
+                ),
             }
-        )
-        .rl_module(
-            rl_module_spec=MultiRLModuleSpec(
-                rl_module_specs={
-                    # The "main" RLModule (policy) to be trained by our algo.
-                    DEFAULT_MODULE_ID: RLModuleSpec(
-                        **(
-                            {"model_config": {"vf_share_layers": True}}
-                            if args.algo == "PPO"
-                            else {}
-                        ),
-                    ),
-                    # The intrinsic curiosity model.
-                    ICM_MODULE_ID: RLModuleSpec(
-                        module_class=IntrinsicCuriosityModel,
-                        # Only create the ICM on the Learner workers, NOT on the
-                        # EnvRunners.
-                        learner_only=True,
-                        # Configure the architecture of the ICM here.
-                        model_config={
-                            "feature_dim": 288,
-                            "feature_net_hiddens": (256, 256),
-                            "feature_net_activation": "relu",
-                            "inverse_net_hiddens": (256, 256),
-                            "inverse_net_activation": "relu",
-                            "forward_net_hiddens": (256, 256),
-                            "forward_net_activation": "relu",
-                        },
-                    ),
-                }
-            ),
-            # Use a different learning rate for training the ICM.
-            algorithm_config_overrides_per_module={
-                ICM_MODULE_ID: AlgorithmConfig.overrides(lr=0.0005)
-            },
-        )
+        ),
+        # Use a different learning rate for training the ICM.
+        algorithm_config_overrides_per_module={
+            ICM_MODULE_ID: AlgorithmConfig.overrides(lr=0.0005)
+        },
+    )
+)
+
+# Set PPO-specific hyper-parameters.
+if args.algo == "PPO":
+    base_config.training(
+        num_epochs=6,
+        # Plug in the correct Learner class.
+        learner_class=PPOTorchLearnerWithCuriosity,
+        train_batch_size_per_learner=2000,
+        lr=0.0003,
+    )
+elif args.algo == "DQN":
+    base_config.training(
+        # Plug in the correct Learner class.
+        learner_class=DQNTorchLearnerWithCuriosity,
+        train_batch_size_per_learner=128,
+        lr=0.00075,
+        replay_buffer_config={
+            "type": "PrioritizedEpisodeReplayBuffer",
+            "capacity": 500000,
+            "alpha": 0.6,
+            "beta": 0.4,
+        },
+        # Epsilon exploration schedule for DQN.
+        epsilon=[[0, 1.0], [500000, 0.05]],
+        n_step=(3, 5),
+        double_q=True,
+        dueling=True,
     )
 
-    # Set PPO-specific hyper-parameters.
-    if args.algo == "PPO":
-        base_config.training(
-            num_epochs=6,
-            # Plug in the correct Learner class.
-            learner_class=PPOTorchLearnerWithCuriosity,
-            train_batch_size_per_learner=2000,
-            lr=0.0003,
-        )
-    elif args.algo == "DQN":
-        base_config.training(
-            # Plug in the correct Learner class.
-            learner_class=DQNTorchLearnerWithCuriosity,
-            train_batch_size_per_learner=128,
-            lr=0.00075,
-            replay_buffer_config={
-                "type": "PrioritizedEpisodeReplayBuffer",
-                "capacity": 500000,
-                "alpha": 0.6,
-                "beta": 0.4,
-            },
-            # Epsilon exploration schedule for DQN.
-            epsilon=[[0, 1.0], [500000, 0.05]],
-            n_step=(3, 5),
-            double_q=True,
-            dueling=True,
-        )
+success_key = f"{ENV_RUNNER_RESULTS}/max_dist_travelled_across_running_episodes"
+stop = {
+    success_key: 12.0,
+    f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": args.stop_reward,
+    NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
+}
 
-    success_key = f"{ENV_RUNNER_RESULTS}/max_dist_travelled_across_running_episodes"
-    stop = {
-        success_key: 12.0,
-        f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": args.stop_reward,
-        NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
-    }
 
+if __name__ == "__main__":
     run_rllib_example_script_experiment(
         base_config,
         args,
