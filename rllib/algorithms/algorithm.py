@@ -1375,7 +1375,7 @@ class Algorithm(Checkpointable, Trainable):
         """Evaluates current policy under `evaluation_config` settings.
 
         Args:
-            parallel_train_future: In case, we are training and avaluating in parallel,
+            parallel_train_future: In case, we are training and evaluating in parallel,
                 this arg carries the currently running ThreadPoolExecutor object that
                 runs the training iteration. Use `parallel_train_future.done()` to
                 check, whether the parallel training job has completed and
@@ -1393,7 +1393,12 @@ class Algorithm(Checkpointable, Trainable):
                 return self._run_offline_evaluation_old_api_stack()
 
             if self.config.enable_env_runner_and_connector_v2:
-                if (
+                # When evaluation runs in parallel to training, use the learner_group
+                # as the weights source (contains weights from the last completed training
+                # iteration) to avoid blocking on currently-training workers.
+                if self.config.evaluation_parallel_to_training:
+                    weights_src = self.learner_group
+                elif (
                     self.env_runner_group is not None
                     and self.env_runner_group.healthy_env_runner_ids()
                 ):
