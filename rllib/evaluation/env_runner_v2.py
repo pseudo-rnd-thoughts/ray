@@ -507,9 +507,6 @@ class EnvRunnerV2:
                 all_agents_done = False
                 active_envs.add(env_id)
 
-            # Special handling of common info dict.
-            episode.set_last_info("__common__", infos[env_id].get("__common__", {}))
-
             # Agent sample batches grouped by policy. Each set of sample batches will
             # go through agent connectors together.
             sample_batches_by_policy = defaultdict(list)

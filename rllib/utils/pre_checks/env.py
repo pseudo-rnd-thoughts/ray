@@ -164,7 +164,6 @@ def _check_info(info, base_env=False, agent_ids=None):
                 if not (
                     agent_id in agent_ids
                     or agent_id == "__all__"
-                    or agent_id == "__common__"
                 ):
                     error = (
                         f"Your dones dictionary must have agent ids that belong to "
@@ -196,7 +195,6 @@ def _check_if_element_multi_agent_dict(
     element,
     function_string,
     base_env=False,
-    allow_common=False,
 ):
     if not isinstance(element, dict):
         if base_env:
@@ -214,8 +212,6 @@ def _check_if_element_multi_agent_dict(
         raise ValueError(error)
     agent_ids: Set = set(env.agents)
     agent_ids.add("__all__")
-    if allow_common:
-        agent_ids.add("__common__")
 
     if not all(k in agent_ids for k in element):
         if base_env:
