@@ -666,6 +666,8 @@ def run_rllib_example_script_experiment(
                     f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}": "episode return mean",
                 },
                 max_report_frequency=args.tune_max_report_freq,
+                # This minimises the logged data when as_test is true
+                parameter_columns={} if args.as_test else None,
             )
         else:
             progress_reporter = CLIReporter(
@@ -684,6 +686,8 @@ def run_rllib_example_script_experiment(
                     },
                 },
                 max_report_frequency=args.tune_max_report_freq,
+                # This minimises the logged data when as_test is true
+                parameter_columns={} if args.as_test else None,
             )
 
     # Force Tuner to use old progress output as the new one silently ignores our custom
