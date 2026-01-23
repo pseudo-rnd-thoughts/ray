@@ -443,6 +443,14 @@ def run_rllib_example_script_experiment(
             for those example scripts which demonstrate how to set config settings
             that are otherwise taken care of automatically in this function (e.g.
             `num_env_runners`).
+        keep_ray_up: Whether to keep the Ray cluster running after the experiment
+            completes. If False (default), Ray will be shut down at the end.
+        scheduler: An optional Ray Tune scheduler (e.g., `PopulationBasedTraining`,
+            `ASHAScheduler`) for hyperparameter optimization. If None, no scheduler
+            is used.
+        progress_reporter: An optional custom progress reporter for Tune. If None,
+            a default `CLIReporter` is automatically configured based on whether
+            the experiment is single-agent or multi-agent.
 
     Returns:
         The last ResultDict from a --no-tune run OR the tune.Tuner.fit()
