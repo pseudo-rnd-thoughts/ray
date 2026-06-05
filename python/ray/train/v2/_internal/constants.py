@@ -101,6 +101,18 @@ DEFAULT_RAY_WARN_BLOCKING_GET_INSIDE_ASYNC_VALUE = "0"
 # torchft lighthouse address
 TORCHFT_LIGHTHOUSE_ADDR_ENV_VAR = "TORCHFT_LIGHTHOUSE"
 
+# NCCL's standard switch for its RAS subsystem (default 1 = enabled in NCCL
+# >= 2.24). Ray Train reuses this as the gate for its RAS hang detector:
+# explicitly set NCCL_RAS_ENABLE=1 to enable detection (the callback is opt-in
+# and is not registered unless this is set truthy). Setting it to 0 disables
+# the NCCL subsystem itself (it is propagated to workers) and the detector.
+NCCL_RAS_ENABLE_ENV_VAR = "NCCL_RAS_ENABLE"
+
+# NCCL's standard RAS listen address (``host:port``, default localhost:28028).
+# The ``ncclras`` client query honors this so it connects to wherever the RAS
+# subsystem is listening on each worker.
+NCCL_RAS_ADDR_ENV_VAR = "NCCL_RAS_ADDR"
+
 # Environment variables to propagate from the driver to the controller,
 # and then from the controller to the workers.
 ENV_VARS_TO_PROPAGATE = {
@@ -118,6 +130,10 @@ ENV_VARS_TO_PROPAGATE = {
     STATE_ACTOR_RECONCILIATION_INTERVAL_S_ENV_VAR,
     RAY_WARN_BLOCKING_GET_INSIDE_ASYNC_ENV_VAR,
     TORCHFT_LIGHTHOUSE_ADDR_ENV_VAR,
+    # Propagate so NCCL (and our client query) on the workers see the same
+    # value the user set on the driver.
+    NCCL_RAS_ENABLE_ENV_VAR,
+    NCCL_RAS_ADDR_ENV_VAR,
 }
 
 
@@ -127,6 +143,45 @@ ENV_VARS_TO_PROPAGATE = {
 
 # The environment variable to enable the Ray Train Metrics.
 METRICS_ENABLED_ENV_VAR = "RAY_TRAIN_METRICS_ENABLED"
+
+# ------------------------------------------------------------
+# NCCL RAS hang detection.
+#
+# These are read on the driver when constructing `NCCLRASCallback` and travel
+# with the (pickled) callback to the controller, so they do not need to be
+# added to `ENV_VARS_TO_PROPAGATE`.
+# ------------------------------------------------------------
+
+# The NCCL RAS hang detector is gated by the standard NCCL_RAS_ENABLE env var
+# (defined above) rather than a Ray-Train-specific flag. It additionally
+# requires NCCL >= 2.24 and the `ncclras` client binary on the worker nodes.
+
+# How often (seconds) to query the NCCL RAS subsystem. This is throttled
+# independently of the much faster controller poll interval, since each query
+# shells out to `ncclras` on a worker.
+NCCL_RAS_POLL_INTERVAL_S_ENV_VAR = "RAY_TRAIN_NCCL_RAS_POLL_INTERVAL_S"
+DEFAULT_NCCL_RAS_POLL_INTERVAL_S: float = 30.0
+
+# Number of consecutive RAS reports that must agree a hang is occurring before
+# the detector acts. Debounces transient op-count skew between ranks.
+NCCL_RAS_CONFIRM_COUNT_ENV_VAR = "RAY_TRAIN_NCCL_RAS_CONFIRM_COUNT"
+DEFAULT_NCCL_RAS_CONFIRM_COUNT: int = 3
+
+# Path to the `ncclras` client binary (looked up on PATH by default).
+NCCLRAS_BINARY_PATH_ENV_VAR = "RAY_TRAIN_NCCLRAS_PATH"
+DEFAULT_NCCLRAS_BINARY_PATH = "ncclras"
+
+# Per-query timeout (seconds) passed to `ncclras -t`.
+NCCL_RAS_QUERY_TIMEOUT_S_ENV_VAR = "RAY_TRAIN_NCCL_RAS_QUERY_TIMEOUT_S"
+DEFAULT_NCCL_RAS_QUERY_TIMEOUT_S: float = 5.0
+
+# Action to take on a confirmed hang. "fail" captures stack traces then raises
+# a terminal (non-retryable) NCCLHangError, failing the run. "observe" only
+# emits metrics and captures stacks without failing the run.
+NCCL_RAS_ACTION_ENV_VAR = "RAY_TRAIN_NCCL_RAS_ACTION"
+NCCL_RAS_ACTION_FAIL = "fail"
+NCCL_RAS_ACTION_OBSERVE = "observe"
+DEFAULT_NCCL_RAS_ACTION = NCCL_RAS_ACTION_FAIL
 
 
 def is_v2_enabled() -> bool:

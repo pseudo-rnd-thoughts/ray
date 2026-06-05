@@ -31,6 +31,23 @@ class WorkerGroupError(TrainingFailedError):
 
 
 @PublicAPI(stability="alpha")
+class NCCLHangError(WorkerGroupError):
+    """Exception raised when the NCCL RAS subsystem detects a hung training job.
+
+    This is a :class:`WorkerGroupError` (so it is reported with the per-rank
+    failure detail), but unlike other worker group errors it is treated as
+    **non-retryable** by the default failure policy: NCCL hangs are usually
+    deterministic (e.g. a collective-call mismatch in user code), so retrying
+    would simply hang again. The run fails after stack traces are captured.
+
+    Args:
+        error_message: A human-readable description of the detected hang.
+        worker_failures: A mapping from world rank to the per-rank reason the
+            rank was flagged as hung (e.g. declared dead, op-count mismatch).
+    """
+
+
+@PublicAPI(stability="alpha")
 class ControllerError(TrainingFailedError):
     """Exception raised when training fails due to a controller error.
 
