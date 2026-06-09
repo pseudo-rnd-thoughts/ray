@@ -25,6 +25,7 @@ import json
 import logging
 import os
 import subprocess
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Set
 
@@ -202,27 +203,112 @@ class RASReport:
         return frozenset(self.dead_ranks | self.mismatched_ranks)
 
 
-def _coerce_ranks(value) -> Set[int]:
-    ranks: Set[int] = set()
-    if isinstance(value, (list, tuple, set)):
-        for item in value:
+# Keys an ``ncclras`` rank / missing-rank entry may use for the global rank.
+_RANK_ID_KEYS = ("rank", "global_rank", "globalRank", "rank_id", "rankId")
+
+
+def _rank_id(entry: Dict) -> Optional[int]:
+    """Extract a global rank index from a rank / missing-rank entry."""
+    for key in _RANK_ID_KEYS:
+        if key in entry:
             try:
-                ranks.add(int(item))
+                return int(entry[key])
             except (TypeError, ValueError):
-                continue
-    return ranks
+                return None
+    return None
+
+
+def _counts_signature(counts) -> Optional[tuple]:
+    """Hashable signature of a per-rank ``collective_counts`` dict."""
+    if not isinstance(counts, dict):
+        return None
+    sig = []
+    for name, value in counts.items():
+        try:
+            sig.append((str(name), int(value)))
+        except (TypeError, ValueError):
+            continue
+    return tuple(sorted(sig))
+
+
+def _dead_ranks_from_comm(comm: Dict) -> Set[int]:
+    """Ranks a communicator's ``missing_ranks`` marks dead or unresponsive."""
+    out: Set[int] = set()
+    missing = comm.get("missing_ranks")
+    if not isinstance(missing, list):
+        return out
+    for entry in missing:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("considered_dead") or entry.get("unresponsive"):
+            rid = _rank_id(entry)
+            if rid is not None:
+                out.add(rid)
+    return out
+
+
+def _mismatched_ranks_from_comm(comm: Dict) -> Set[int]:
+    """Ranks whose collective op counts deviate from their peers'.
+
+    RAS does not emit an explicit "mismatch" flag in JSON; it is derived here by
+    comparing each rank's ``collective_counts`` within a communicator. Ranks
+    whose counts differ from the modal (most common) signature are flagged.
+    Transient skew (a rank a step ahead) is expected -- the callback debounces
+    over consecutive reports before treating it as a hang.
+    """
+    ranks = comm.get("ranks")
+    if not isinstance(ranks, list):
+        return set()
+    sigs: Dict[int, tuple] = {}
+    for entry in ranks:
+        if not isinstance(entry, dict):
+            continue
+        rid = _rank_id(entry)
+        sig = _counts_signature(entry.get("collective_counts"))
+        if rid is not None and sig is not None:
+            sigs[rid] = sig
+    # Need at least two distinct signatures to call anything an outlier.
+    if len(sigs) < 2 or len(set(sigs.values())) < 2:
+        return set()
+    modal, _ = Counter(sigs.values()).most_common(1)[0]
+    return {rid for rid, sig in sigs.items() if sig != modal}
 
 
 def _interpret_ras_status(stdout: str) -> Optional[RASReport]:
     """Parse ``ncclras -f json`` output into a :class:`RASReport`.
 
-    Returns ``None`` if the output is not valid JSON.
+    Targets the documented NCCL >= 2.28.7 JSON schema::
 
-    NOTE: The exact ``ncclras`` JSON schema can vary across NCCL versions. This
-    parser reads the documented signals (dead/unresponsive processes and
-    collective op-count mismatches) and tolerates a few key spellings. Validate
-    against the ``ncclras -f json`` output of the deployed NCCL version before
-    relying on automatic hang detection.
+        {
+          "nccl_version": ..., "communicators_count": N,
+          "communicators": [
+            {
+              "hash": ..., "secondary_hash": ...,
+              "size": ..., "ranks_count": ..., "missing_ranks_count": ...,
+              "ranks": [
+                {"rank": 0, "status": {...}, "collective_counts": {...}}, ...
+              ],
+              "missing_ranks": [
+                {"rank": 3, "unresponsive": true, "considered_dead": true}, ...
+              ]
+            }, ...
+          ]
+        }
+
+    Hang signals, aggregated across all communicators:
+      * ``dead_ranks``       -- ``missing_ranks`` entries flagged
+        ``considered_dead`` or ``unresponsive``.
+      * ``mismatched_ranks`` -- ranks whose per-rank ``collective_counts``
+        deviate from the modal signature (op-count skew).
+
+    Returns ``None`` if the output is not valid JSON or lacks a
+    ``communicators`` array (an unexpected shape we refuse to guess at).
+
+    NOTE: Validated against the *documented* schema, not yet against live
+    ``ncclras`` output. The exact rank-id key inside ``ranks`` / ``missing_ranks``
+    and the location of ``collective_counts`` may differ across NCCL versions;
+    capture real output (see ``scratch/nccl-ras-examples/README.md``) and pin
+    these before relying on automatic hang detection.
     """
     try:
         data = json.loads(stdout)
@@ -232,29 +318,16 @@ def _interpret_ras_status(stdout: str) -> Optional[RASReport]:
     if not isinstance(data, dict):
         return None
 
+    communicators = data.get("communicators")
+    if not isinstance(communicators, list):
+        return None
+
     report = RASReport()
-
-    # Dead / unresponsive ranks reported at the top level.
-    for key in ("deadRanks", "dead_ranks", "deadProcesses", "unresponsiveRanks"):
-        report.dead_ranks |= _coerce_ranks(data.get(key))
-
-    # Per-communicator op-count mismatches.
-    communicators = data.get("communicators") or data.get("comms") or []
-    if isinstance(communicators, list):
-        for comm in communicators:
-            if not isinstance(comm, dict):
-                continue
-            has_mismatch = bool(
-                comm.get("collMismatch")
-                or comm.get("mismatch")
-                or comm.get("opCountMismatch")
-            )
-            mismatched = set()
-            for key in ("mismatchedRanks", "mismatched_ranks", "outOfSyncRanks"):
-                mismatched |= _coerce_ranks(comm.get(key))
-            if has_mismatch or mismatched:
-                report.mismatched_ranks |= mismatched
-
+    for comm in communicators:
+        if not isinstance(comm, dict):
+            continue
+        report.dead_ranks |= _dead_ranks_from_comm(comm)
+        report.mismatched_ranks |= _mismatched_ranks_from_comm(comm)
     return report
 
 

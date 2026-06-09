@@ -59,7 +59,20 @@ def _make_callback(monkeypatch, action, confirm_count, reports):
 
 def test_interpret_healthy():
     report = _interpret_ras_status(
-        json.dumps({"deadRanks": [], "communicators": [{"nRanks": 4}]})
+        json.dumps(
+            {
+                "communicators": [
+                    {
+                        "size": 2,
+                        "ranks": [
+                            {"rank": 0, "collective_counts": {"AllReduce": 10}},
+                            {"rank": 1, "collective_counts": {"AllReduce": 10}},
+                        ],
+                        "missing_ranks": [],
+                    }
+                ]
+            }
+        )
     )
     assert report is not None
     assert report.healthy
@@ -67,34 +80,90 @@ def test_interpret_healthy():
 
 
 def test_interpret_dead_ranks():
-    report = _interpret_ras_status(json.dumps({"deadRanks": [3, 5]}))
-    assert report.dead_ranks == {3, 5}
-    assert not report.healthy
-
-
-def test_interpret_mismatch():
     report = _interpret_ras_status(
         json.dumps(
             {
                 "communicators": [
-                    {"collMismatch": True, "mismatchedRanks": [1, 2]},
-                    {"collMismatch": False, "mismatchedRanks": []},
+                    {
+                        "missing_ranks": [
+                            {"rank": 3, "considered_dead": True, "unresponsive": True},
+                            {"rank": 5, "considered_dead": True},
+                        ]
+                    }
                 ]
             }
         )
     )
-    assert report.mismatched_ranks == {1, 2}
+    assert report.dead_ranks == {3, 5}
     assert not report.healthy
 
 
-def test_interpret_alternate_keys():
-    report = _interpret_ras_status(json.dumps({"dead_ranks": [7]}))
-    assert report.dead_ranks == {7}
+def test_interpret_unresponsive_counts_as_dead():
+    # Unresponsive-but-not-yet-dead is still a hang signal.
+    report = _interpret_ras_status(
+        json.dumps(
+            {
+                "communicators": [
+                    {
+                        "missing_ranks": [
+                            {"rank": 2, "unresponsive": True, "considered_dead": False}
+                        ]
+                    }
+                ]
+            }
+        )
+    )
+    assert report.dead_ranks == {2}
+
+
+def test_interpret_mismatch():
+    # Rank 2's op count lags the modal signature -> flagged as mismatched.
+    report = _interpret_ras_status(
+        json.dumps(
+            {
+                "communicators": [
+                    {
+                        "ranks": [
+                            {"rank": 0, "collective_counts": {"AllReduce": 100}},
+                            {"rank": 1, "collective_counts": {"AllReduce": 100}},
+                            {"rank": 2, "collective_counts": {"AllReduce": 98}},
+                        ]
+                    }
+                ]
+            }
+        )
+    )
+    assert report.mismatched_ranks == {2}
+    assert not report.healthy
+
+
+def test_interpret_aligned_counts_are_healthy():
+    # All ranks agree -> no mismatch even with multiple op types.
+    report = _interpret_ras_status(
+        json.dumps(
+            {
+                "communicators": [
+                    {
+                        "ranks": [
+                            {
+                                "rank": r,
+                                "collective_counts": {"AllReduce": 5, "Bcast": 2},
+                            }
+                            for r in range(4)
+                        ]
+                    }
+                ]
+            }
+        )
+    )
+    assert report.healthy
 
 
 def test_interpret_invalid_json():
     assert _interpret_ras_status("not json") is None
     assert _interpret_ras_status(json.dumps([1, 2, 3])) is None
+    # A dict without a communicators array is an unexpected shape -> None.
+    assert _interpret_ras_status(json.dumps({"nccl_version": "2.28.7"})) is None
 
 
 # --------------------------------------------------------------------------
