@@ -481,6 +481,30 @@ py_test(
 )
 
 py_test(
+    name = "test_nccl_ras_e2e",
+    size = "large",
+    srcs = ["tests/test_nccl_ras_e2e.py"],
+    env = {
+        "NCCL_RAS_ENABLE": "1",
+        "RAY_TRAIN_V2_ENABLED": "1",
+    },
+    tags = [
+        # Needs real GPUs *and* the `ncclras` client binary (NCCL >= 2.28.7),
+        # which Ray's default GPU CI image does not ship -- the test module
+        # skips when either is missing. Tagged 'manual' so it is excluded from
+        # default Bazel runs and invoked on demand on suitable hardware.
+        "manual",
+        "exclusive",
+        "team:ml",
+        "train_v2_gpu",
+    ],
+    deps = [
+        ":conftest",
+        "//:ray_lib",
+    ],
+)
+
+py_test(
     name = "test_persistence",
     size = "medium",
     srcs = ["tests/test_persistence.py"],

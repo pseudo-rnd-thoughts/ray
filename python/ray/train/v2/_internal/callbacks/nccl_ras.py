@@ -13,17 +13,30 @@ the controller, and on each (throttled) poll asks a worker to shell out to
 ``ncclras`` against its local socket and return the parsed status. A single
 query covers all ranks.
 
-On a confirmed hang (debounced over several consecutive reports) the callback
-captures native stack traces from every worker and, in ``fail`` mode, raises
-:class:`~ray.train.v2.api.exceptions.NCCLHangError`. The default failure policy
-treats this as terminal (non-retryable) -- NCCL hangs are usually deterministic,
-so the run fails fast with the captured stacks rather than restarting into the
-same hang.
+A divergence is classified by whether the op-counts are still advancing:
+
+  * HARD hang -- a dead/unresponsive rank, or an op-count mismatch whose counts
+    are *frozen* (unchanged) across polls. A real deadlock. After
+    ``CONFIRM_COUNT`` consecutive hard polls the callback captures native stack
+    traces from every worker and, in ``fail`` mode, raises
+    :class:`~ray.train.v2.api.exceptions.NCCLHangError` (terminal / non-retryable
+    -- NCCL hangs are usually deterministic, so the run fails fast rather than
+    restarting into the same hang). ``observe`` mode captures + logs but does
+    not raise.
+  * SOFT hang -- the same op-count mismatch persists but the counts keep
+    *advancing*: the job is making progress while chronically uneven (a slow
+    straggler, load imbalance). This is logged every ``CONFIRM_COUNT`` polls and
+    tolerated; the run is never failed on a soft hang.
+
+Both debounce over ``CONFIRM_COUNT`` consecutive polls; a healthy poll, or a
+change in the *nature* of the divergence (different ranks or op types), resets
+the counters.
 """
 
 import json
 import logging
 import os
+import re
 import subprocess
 from collections import Counter
 from dataclasses import dataclass, field
@@ -186,21 +199,23 @@ def _dump_self_native_stack(pyspy_timeout_s: float) -> str:
 class RASReport:
     """Structured summary of an ``ncclras`` JSON report.
 
-    ``dead_ranks`` and ``mismatched_ranks`` are the hang signals; a report is
-    healthy when both are empty.
+    ``dead_ranks`` and the mismatched ranks are the hang signals; a report is
+    healthy when both are empty. ``rank_counts`` maps each *mismatched* rank to
+    its collective-count signature (a sorted tuple of ``(op_name, count)``
+    pairs); the counts let the callback tell a *frozen* divergence (a hard hang)
+    from one whose counts are still *advancing* (a soft hang) across polls.
     """
 
     dead_ranks: Set[int] = field(default_factory=set)
-    mismatched_ranks: Set[int] = field(default_factory=set)
+    rank_counts: Dict[int, tuple] = field(default_factory=dict)
+
+    @property
+    def mismatched_ranks(self) -> Set[int]:
+        return set(self.rank_counts)
 
     @property
     def healthy(self) -> bool:
-        return not self.dead_ranks and not self.mismatched_ranks
-
-    @property
-    def bad_signature(self) -> frozenset:
-        """Identity of the anomaly, used to debounce repeated identical reports."""
-        return frozenset(self.dead_ranks | self.mismatched_ranks)
+        return not self.dead_ranks and not self.rank_counts
 
 
 # Keys an ``ncclras`` rank / missing-rank entry may use for the global rank.
@@ -232,7 +247,12 @@ def _counts_signature(counts) -> Optional[tuple]:
 
 
 def _dead_ranks_from_comm(comm: Dict) -> Set[int]:
-    """Ranks a communicator's ``missing_ranks`` marks dead or unresponsive."""
+    """Ranks a communicator's ``missing_ranks`` marks dead or unresponsive.
+
+    The ``considered_dead`` / ``unresponsive`` flags appear either at the top
+    level of a ``missing_ranks`` entry (documented schema) or nested under a
+    ``"status"`` object (NCCL 2.28.9+ live output); both layouts are handled.
+    """
     out: Set[int] = set()
     missing = comm.get("missing_ranks")
     if not isinstance(missing, list):
@@ -240,25 +260,29 @@ def _dead_ranks_from_comm(comm: Dict) -> Set[int]:
     for entry in missing:
         if not isinstance(entry, dict):
             continue
-        if entry.get("considered_dead") or entry.get("unresponsive"):
+        status = entry.get("status")
+        if not isinstance(status, dict):
+            status = entry
+        if status.get("considered_dead") or status.get("unresponsive"):
             rid = _rank_id(entry)
             if rid is not None:
                 out.add(rid)
     return out
 
 
-def _mismatched_ranks_from_comm(comm: Dict) -> Set[int]:
-    """Ranks whose collective op counts deviate from their peers'.
+def _mismatched_counts_from_comm(comm: Dict) -> Dict[int, tuple]:
+    """Mismatched ranks -> their collective-count signature.
 
     RAS does not emit an explicit "mismatch" flag in JSON; it is derived here by
     comparing each rank's ``collective_counts`` within a communicator. Ranks
-    whose counts differ from the modal (most common) signature are flagged.
-    Transient skew (a rank a step ahead) is expected -- the callback debounces
-    over consecutive reports before treating it as a hang.
+    whose counts differ from the modal (most common) signature are flagged, and
+    their signature is returned so the callback can later tell a frozen
+    divergence from an advancing one. Transient skew (a rank a step ahead) is
+    expected -- the callback debounces over consecutive polls before acting.
     """
     ranks = comm.get("ranks")
     if not isinstance(ranks, list):
-        return set()
+        return {}
     sigs: Dict[int, tuple] = {}
     for entry in ranks:
         if not isinstance(entry, dict):
@@ -269,9 +293,33 @@ def _mismatched_ranks_from_comm(comm: Dict) -> Set[int]:
             sigs[rid] = sig
     # Need at least two distinct signatures to call anything an outlier.
     if len(sigs) < 2 or len(set(sigs.values())) < 2:
-        return set()
+        return {}
     modal, _ = Counter(sigs.values()).most_common(1)[0]
-    return {rid for rid, sig in sigs.items() if sig != modal}
+    return {rid: sig for rid, sig in sigs.items() if sig != modal}
+
+
+# Matches a primitive JSON value (number / string / true / false / null) that is
+# immediately followed -- across a newline, with NO comma -- by the next object
+# key. This is the shape of the NCCL 2.28.9 ``missing_ranks[]`` serializer bug
+# (``"nvml_dev": 0`` then ``"status": {``). It only matches malformed input, so
+# the repair is a no-op on valid JSON.
+_MISSING_COMMA_RE = re.compile(r'([\d"el])(\s*\n\s*)("[^"\n]*"\s*:)')
+
+
+def _repair_missing_commas(stdout: str) -> str:
+    """Insert commas omitted by the NCCL 2.28.9 JSON serializer.
+
+    NCCL 2.28.9 emits ``missing_ranks[]`` entries with no comma before the
+    ``"status"`` field, e.g.::
+
+        "nvml_dev": 0
+        "status": { ... }
+
+    which is invalid JSON. Insert the missing comma between such a value and the
+    following key. Targets only that malformed pattern (see ``_MISSING_COMMA_RE``)
+    so it leaves well-formed reports untouched.
+    """
+    return _MISSING_COMMA_RE.sub(r"\1,\2\3", stdout)
 
 
 def _interpret_ras_status(stdout: str) -> Optional[RASReport]:
@@ -313,7 +361,13 @@ def _interpret_ras_status(stdout: str) -> Optional[RASReport]:
     try:
         data = json.loads(stdout)
     except (json.JSONDecodeError, TypeError):
-        return None
+        # NCCL 2.28.9 serializes ``missing_ranks[]`` entries with a missing
+        # comma before ``"status"`` (fixed in 2.30.7), producing invalid JSON.
+        # Repair that one pattern and retry once before giving up.
+        try:
+            data = json.loads(_repair_missing_commas(stdout))
+        except (json.JSONDecodeError, TypeError):
+            return None
 
     if not isinstance(data, dict):
         return None
@@ -327,7 +381,7 @@ def _interpret_ras_status(stdout: str) -> Optional[RASReport]:
         if not isinstance(comm, dict):
             continue
         report.dead_ranks |= _dead_ranks_from_comm(comm)
-        report.mismatched_ranks |= _mismatched_ranks_from_comm(comm)
+        report.rank_counts.update(_mismatched_counts_from_comm(comm))
     return report
 
 
@@ -416,28 +470,77 @@ class NCCLRASCallback(WorkerGroupCallback, ControllerCallback):
             return
 
         if report.healthy:
-            self._reset_detection_state(keep_query_time=True)
+            self._reset_counters()
+            self._prev_episode_key = None
+            self._prev_frozen_key = None
             return
 
-        # Debounce: require the same anomaly across consecutive reports.
-        if report.bad_signature == self._last_bad_signature:
-            self._consecutive_bad += 1
-        else:
-            self._consecutive_bad = 1
-            self._last_bad_signature = report.bad_signature
+        # Classify this poll against the previous one. The *episode key* (dead
+        # ranks + the mismatch op *shape*, counts dropped) decides whether this
+        # is the same anomaly as last poll; the *frozen key* (the same, but with
+        # op counts) decides whether it has advanced since.
+        episode_key = self._episode_key(report)
+        frozen_key = self._frozen_key(report)
+        new_episode = episode_key != self._prev_episode_key
+        frozen = frozen_key == self._prev_frozen_key
+        self._prev_episode_key = episode_key
+        self._prev_frozen_key = frozen_key
 
+        if new_episode:
+            # A new or changed anomaly restarts the debounce. Dead ranks are a
+            # hard signal immediately; a fresh op-count mismatch needs a prior
+            # poll to tell frozen from advancing, so it is only a baseline.
+            self._reset_counters()
+            if not report.dead_ranks:
+                return
+
+        if report.dead_ranks or frozen:
+            self._record_hard_poll(report)
+        else:
+            self._record_soft_poll(report)
+
+    def _record_hard_poll(self, report: RASReport):
+        self._hard_polls += 1
+        self._soft_polls = 0
         logger.warning(
-            "NCCL RAS anomaly (%d/%d): dead_ranks=%s mismatched_ranks=%s",
-            self._consecutive_bad,
+            "NCCL RAS anomaly FROZEN (hard hang %d/%d): dead_ranks=%s "
+            "mismatched_ranks=%s",
+            self._hard_polls,
             self._confirm_count,
             sorted(report.dead_ranks),
             sorted(report.mismatched_ranks),
         )
+        # One poll before failing, log the raw JSON at info level so successive
+        # snapshots can be diffed to confirm the counts are genuinely frozen.
+        if self._hard_polls == self._confirm_count - 1 and self._last_raw_json:
+            logger.info(
+                "NCCL RAS frozen snapshot (one poll before failing):\n%s",
+                self._last_raw_json,
+            )
+        if self._hard_polls >= self._confirm_count:
+            self._handle_confirmed_hang(report)
 
-        if self._consecutive_bad < self._confirm_count:
-            return
-
-        self._handle_confirmed_hang(report)
+    def _record_soft_poll(self, report: RASReport):
+        self._soft_polls += 1
+        self._hard_polls = 0
+        logger.warning(
+            "NCCL RAS op-count divergence persisting but ADVANCING "
+            "(soft hang %d/%d): mismatched_ranks=%s",
+            self._soft_polls,
+            self._confirm_count,
+            sorted(report.mismatched_ranks),
+        )
+        # The job is still progressing, so do NOT fail the run. Log the latest
+        # RAS snapshot on the first poll at the threshold and every
+        # ``CONFIRM_COUNT`` polls after, so a chronic soft hang stays visible
+        # without spamming on every poll.
+        if self._soft_polls % self._confirm_count == 0 and self._last_raw_json:
+            logger.warning(
+                "NCCL RAS soft hang (job advancing but chronically uneven); "
+                "mismatched_ranks=%s. Latest RAS JSON:\n%s",
+                sorted(report.mismatched_ranks),
+                self._last_raw_json,
+            )
 
     def _handle_confirmed_hang(self, report: RASReport):
         # Capture stacks once per confirmed episode.
@@ -445,9 +548,13 @@ class NCCLRASCallback(WorkerGroupCallback, ControllerCallback):
             self._hang_reported = True
             self._hang_total += 1
             dump_dir = self._capture_stacks()
+            if self._last_raw_json:
+                logger.error("NCCL RAS JSON at hang:\n%s", self._last_raw_json)
             logger.error(
-                "NCCL hang confirmed (dead_ranks=%s, mismatched_ranks=%s). "
-                "Stack traces written to %s.",
+                "NCCL hang confirmed: frozen for %d consecutive polls "
+                "(dead_ranks=%s, mismatched_ranks=%s). Stack traces written "
+                "to %s.",
+                self._confirm_count,
                 sorted(report.dead_ranks),
                 sorted(report.mismatched_ranks),
                 dump_dir,
@@ -464,12 +571,12 @@ class NCCLRASCallback(WorkerGroupCallback, ControllerCallback):
         for rank in report.mismatched_ranks:
             worker_failures.setdefault(
                 rank,
-                RuntimeError("NCCL RAS reported a collective op-count mismatch."),
+                RuntimeError("NCCL RAS: collective ops frozen / diverged from peers."),
             )
 
         error_message = (
-            f"NCCL RAS detected a hang confirmed over {self._consecutive_bad} "
-            f"consecutive reports. Dead ranks: {sorted(report.dead_ranks)}; "
+            f"NCCL RAS detected a hang: frozen for {self._confirm_count} "
+            f"consecutive polls. Dead ranks: {sorted(report.dead_ranks)}; "
             f"mismatched ranks: {sorted(report.mismatched_ranks)}."
         )
         # Raising propagates through poll_status -> _poll_workers -> _step and
@@ -479,15 +586,44 @@ class NCCLRASCallback(WorkerGroupCallback, ControllerCallback):
 
     # -- helpers -----------------------------------------------------------
 
-    def _reset_detection_state(self, keep_query_time: bool = False):
-        self._consecutive_bad = 0
-        self._last_bad_signature: frozenset = frozenset()
-        self._hang_reported = False
-        if not keep_query_time:
-            # Force a query on the next poll after (re)start.
-            self._last_query_time = float("-inf")
+    def _reset_detection_state(self):
+        self._reset_counters()
+        # Previous poll's episode / frozen keys, for the across-poll comparison.
+        self._prev_episode_key = None
+        self._prev_frozen_key = None
+        # Raw JSON of the most recent successful query, reused for the pre-fail
+        # snapshot and the soft-hang / confirmed-hang logs.
+        self._last_raw_json: Optional[str] = None
+        # Force a query on the next poll after (re)start.
+        self._last_query_time = float("-inf")
         if not hasattr(self, "_hang_total"):
             self._hang_total = 0
+
+    def _reset_counters(self):
+        """Reset the consecutive-poll counters and the capture-once latch."""
+        self._hard_polls = 0
+        self._soft_polls = 0
+        self._hang_reported = False
+
+    @staticmethod
+    def _episode_key(report: RASReport) -> tuple:
+        """Identity of the anomaly ignoring op *counts*: the dead ranks plus, per
+        mismatched rank, the set of op *names*. Two polls share an episode iff
+        this matches; a change (different ranks or ops) restarts the debounce.
+        """
+        shape = frozenset(
+            (rank, frozenset(op for op, _ in sig))
+            for rank, sig in report.rank_counts.items()
+        )
+        return (frozenset(report.dead_ranks), shape)
+
+    @staticmethod
+    def _frozen_key(report: RASReport) -> tuple:
+        """Identity *including* op counts: matches across polls only when nothing
+        has advanced (a frozen / hard hang). Dead-only reports carry no counts,
+        so they compare equal poll-to-poll and are inherently frozen.
+        """
+        return (frozenset(report.dead_ranks), frozenset(report.rank_counts.items()))
 
     def _candidate_workers(self):
         """Workers to query, rank 0 first (a dead rank 0 falls back to peers)."""
@@ -525,6 +661,8 @@ class NCCLRASCallback(WorkerGroupCallback, ControllerCallback):
                 logger.debug("ncclras query unsuccessful: %s", result.get("reason"))
                 continue
 
+            # Stash the raw JSON for the pre-fail snapshot / soft-hang logs.
+            self._last_raw_json = result["stdout"]
             report = _interpret_ras_status(result["stdout"])
             if report is None:
                 logger.debug("Could not parse ncclras JSON output.")

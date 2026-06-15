@@ -76,7 +76,7 @@ def test_interpret_healthy():
     )
     assert report is not None
     assert report.healthy
-    assert report.bad_signature == frozenset()
+    assert report.mismatched_ranks == set()
 
 
 def test_interpret_dead_ranks():
@@ -134,6 +134,8 @@ def test_interpret_mismatch():
         )
     )
     assert report.mismatched_ranks == {2}
+    # The laggard's count signature is carried for the frozen/advancing check.
+    assert report.rank_counts == {2: (("AllReduce", 98),)}
     assert not report.healthy
 
 
@@ -166,21 +168,57 @@ def test_interpret_invalid_json():
     assert _interpret_ras_status(json.dumps({"nccl_version": "2.28.7"})) is None
 
 
+def test_interpret_nccl_2_28_9_missing_comma():
+    # NCCL 2.28.9 emits missing_ranks[] with no comma before "status", which is
+    # invalid JSON. The parser repairs that pattern and still detects the rank.
+    malformed = """
+    {
+      "nccl_version": "2.28.9",
+      "communicators": [
+        {
+          "missing_ranks": [
+            {
+              "rank": 1,
+              "nvml_dev": 0
+              "status": {"unresponsive": true, "considered_dead": false}
+            }
+          ]
+        }
+      ]
+    }
+    """
+    # Sanity: it really is invalid JSON without the repair.
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(malformed)
+
+    report = _interpret_ras_status(malformed)
+    assert report is not None
+    assert report.dead_ranks == {1}
+
+
 # --------------------------------------------------------------------------
 # Debounce / actions
 # --------------------------------------------------------------------------
 
 
-def _bad(dead=(), mismatched=()):
-    return RASReport(dead_ranks=set(dead), mismatched_ranks=set(mismatched))
+def _dead(*ranks):
+    return RASReport(dead_ranks=set(ranks))
+
+
+def _mismatch(counts):
+    """A mismatch report: {rank: AllReduce count} for the lagging rank(s)."""
+    return RASReport(rank_counts={r: (("AllReduce", n),) for r, n in counts.items()})
 
 
 def _healthy():
     return RASReport()
 
 
+# -- dead ranks: a hard signal, confirmed from the first poll ----------------
+
+
 def test_observe_mode_never_raises(monkeypatch, increasing_time):
-    reports = [_bad(dead=[2])] * 3
+    reports = [_dead(2)] * 3
     callback, captured = _make_callback(
         monkeypatch, NCCL_RAS_ACTION_OBSERVE, confirm_count=3, reports=reports
     )
@@ -192,14 +230,14 @@ def test_observe_mode_never_raises(monkeypatch, increasing_time):
 
 
 def test_fail_mode_raises_after_confirm(monkeypatch, increasing_time):
-    reports = [_bad(dead=[1]), _bad(dead=[1])]
+    reports = [_dead(1), _dead(1)]
     callback, captured = _make_callback(
         monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=2, reports=reports
     )
 
-    # First report: below confirm threshold, no raise.
+    # First dead-rank poll: hard 1/2, no raise.
     callback.after_worker_group_poll_status(MagicMock())
-    # Second consecutive identical report: confirmed -> raise.
+    # Second consecutive identical poll: hard 2/2 -> raise.
     with pytest.raises(NCCLHangError) as exc_info:
         callback.after_worker_group_poll_status(MagicMock())
 
@@ -209,7 +247,7 @@ def test_fail_mode_raises_after_confirm(monkeypatch, increasing_time):
 
 def test_changing_signature_resets_debounce(monkeypatch, increasing_time):
     # Different anomaly each round never accumulates to the confirm threshold.
-    reports = [_bad(dead=[1]), _bad(dead=[2]), _bad(dead=[1])]
+    reports = [_dead(1), _dead(2), _dead(1)]
     callback, captured = _make_callback(
         monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=2, reports=reports
     )
@@ -217,12 +255,12 @@ def test_changing_signature_resets_debounce(monkeypatch, increasing_time):
     for _ in reports:
         callback.after_worker_group_poll_status(MagicMock())  # never raises
 
-    assert callback._consecutive_bad == 1
+    assert callback._hard_polls == 1
     assert not captured
 
 
 def test_healthy_resets_state(monkeypatch, increasing_time):
-    reports = [_bad(dead=[1]), _healthy(), _bad(dead=[1])]
+    reports = [_dead(1), _healthy(), _dead(1)]
     callback, _ = _make_callback(
         monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=2, reports=reports
     )
@@ -231,13 +269,13 @@ def test_healthy_resets_state(monkeypatch, increasing_time):
         callback.after_worker_group_poll_status(MagicMock())
 
     # The healthy report in the middle reset the counter back to 1.
-    assert callback._consecutive_bad == 1
+    assert callback._hard_polls == 1
 
 
 def test_throttle_skips_query(monkeypatch):
     # With a large interval and a fixed clock, only the first poll queries.
     monkeypatch.setattr(nccl_ras_module, "time_monotonic", lambda: 100.0)
-    reports = [_bad(dead=[1])]
+    reports = [_dead(1)]
     callback, _ = _make_callback(
         monkeypatch, NCCL_RAS_ACTION_OBSERVE, confirm_count=1, reports=reports
     )
@@ -246,16 +284,84 @@ def test_throttle_skips_query(monkeypatch):
     callback.after_worker_group_poll_status(MagicMock())  # queries
     callback.after_worker_group_poll_status(MagicMock())  # throttled, no query
 
-    assert callback._consecutive_bad == 1  # only one query took effect
+    assert callback._hard_polls == 1  # only one query took effect
 
 
 def test_degraded_skips(monkeypatch, increasing_time):
     callback, _ = _make_callback(
-        monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=1, reports=[_bad(dead=[1])]
+        monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=1, reports=[_dead(1)]
     )
     callback._degraded = True
     callback.after_worker_group_poll_status(MagicMock())  # must not query/raise
-    assert callback._consecutive_bad == 0
+    assert callback._hard_polls == 0
+
+
+# -- op-count mismatch: hard if frozen, soft if advancing --------------------
+
+
+def test_frozen_mismatch_fails(monkeypatch, increasing_time):
+    # Same laggard with unchanged counts -> hard hang after baseline + confirm.
+    reports = [_mismatch({1: 8})] * 3
+    callback, captured = _make_callback(
+        monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=2, reports=reports
+    )
+
+    callback.after_worker_group_poll_status(MagicMock())  # baseline
+    callback.after_worker_group_poll_status(MagicMock())  # frozen -> hard 1/2
+    with pytest.raises(NCCLHangError) as exc_info:
+        callback.after_worker_group_poll_status(MagicMock())  # hard 2/2 -> raise
+
+    assert 1 in exc_info.value.worker_failures
+    assert len(captured) == 1
+
+
+def test_advancing_mismatch_never_fails(monkeypatch, increasing_time):
+    # Same laggard but counts keep advancing -> soft hang, never raises.
+    reports = [_mismatch({1: n}) for n in (8, 9, 10, 11)]
+    callback, captured = _make_callback(
+        monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=2, reports=reports
+    )
+
+    for _ in reports:
+        callback.after_worker_group_poll_status(MagicMock())  # never raises
+
+    assert callback._hard_polls == 0
+    assert callback._soft_polls == 3  # baseline, then 3 advancing polls
+    assert not captured  # soft hangs do not capture stacks
+
+
+def test_soft_then_freeze_escalates_to_hard(monkeypatch, increasing_time):
+    # Advancing (soft) for a while, then the counts freeze -> escalates to hard.
+    reports = [
+        _mismatch({1: 8}),
+        _mismatch({1: 9}),
+        _mismatch({1: 9}),
+        _mismatch({1: 9}),
+    ]
+    callback, captured = _make_callback(
+        monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=2, reports=reports
+    )
+
+    callback.after_worker_group_poll_status(MagicMock())  # baseline (1:8)
+    callback.after_worker_group_poll_status(MagicMock())  # advancing -> soft 1
+    callback.after_worker_group_poll_status(MagicMock())  # frozen -> hard 1/2
+    with pytest.raises(NCCLHangError):
+        callback.after_worker_group_poll_status(MagicMock())  # frozen -> hard 2/2
+
+
+def test_dead_rank_overrides_advancing_mismatch(monkeypatch, increasing_time):
+    # A dead rank alongside an advancing mismatch is still a hard hang.
+    r1 = RASReport(dead_ranks={3}, rank_counts={1: (("AllReduce", 8),)})
+    r2 = RASReport(dead_ranks={3}, rank_counts={1: (("AllReduce", 9),)})
+    callback, captured = _make_callback(
+        monkeypatch, NCCL_RAS_ACTION_FAIL, confirm_count=2, reports=[r1, r2]
+    )
+
+    callback.after_worker_group_poll_status(MagicMock())  # dead -> hard 1/2
+    with pytest.raises(NCCLHangError) as exc_info:
+        callback.after_worker_group_poll_status(MagicMock())  # dead -> hard 2/2
+
+    assert 3 in exc_info.value.worker_failures
 
 
 if __name__ == "__main__":
