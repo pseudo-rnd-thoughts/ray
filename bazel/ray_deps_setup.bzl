@@ -241,17 +241,11 @@ def ray_deps_setup():
     auto_http_archive(
         name = "cython",
         build_file = True,
-        url = "https://github.com/cython/cython/archive/refs/tags/3.0.12.tar.gz",
-        sha256 = "a156fff948c2013f2c8c398612c018e2b52314fdf0228af8fbdb5585e13699c2",
-        patches = [
-            # Use python3 rather than python. macos does not have python installed
-            # by default, and hermetic strict action does not work as python cannot
-            # be found under /usr/bin or any systeme PATH in bazel sandbox.
-            #
-            # This patch can be removed after the following change is included.
-            # https://github.com/cython/cython/pull/7053
-            "//thirdparty/patches:cython.patch",
-        ],
+        # Bumped to 3.3.0a1 for CPython 3.15 C-API support.
+        url = "https://github.com/cython/cython/archive/refs/tags/3.3.0a1.tar.gz",
+        sha256 = "d22ce2a0a5fa9e6022d1d8237b6c1545ca3d3ffca0d1437b3710c7dbf20f9c5b",
+        # The cython.patch (python -> python3 shebang, cython PR #7053) is no
+        # longer needed: 3.3.0a1's cython.py already ships "#!/usr/bin/env python3".
     )
 
     auto_http_archive(
