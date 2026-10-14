@@ -217,16 +217,14 @@ class Checkpoint(metaclass=_CheckpointMetaClass):
                     fs=self.filesystem, fs_path=self.path, local_path=local_path
                 )
         except TimeoutError:
-            # if the directory is already locked, then wait but do not do anything.
+            # The lock is held by another process that is either downloading the
+            # checkpoint or deleting the directory after exiting `as_directory`.
+            # Wait for it to finish, and download again if it was deleted.
             with TempFileLock(local_path, timeout=-1):
-                pass
-            if not os.path.exists(local_path):
-                raise RuntimeError(
-                    f"Checkpoint directory {local_path} does not exist, "
-                    "even though it should have been created by "
-                    "another process. Please raise an issue on GitHub: "
-                    "https://github.com/ray-project/ray/issues"
-                )
+                if not os.path.exists(local_path):
+                    _download_from_fs_path(
+                        fs=self.filesystem, fs_path=self.path, local_path=local_path
+                    )
 
         return local_path
 
@@ -316,7 +314,10 @@ class Checkpoint(metaclass=_CheckpointMetaClass):
                         # the file lock. If it cannot be acquired, a TimeoutError
                         # will be thrown.
                         with TempFileLock(temp_dir, timeout=0):
-                            shutil.rmtree(temp_dir, ignore_errors=True)
+                            # Re-check under the lock, in case another reader
+                            # registered itself after the check above.
+                            if not _list_existing_del_locks(temp_dir):
+                                shutil.rmtree(temp_dir, ignore_errors=True)
                     except TimeoutError:
                         pass
 

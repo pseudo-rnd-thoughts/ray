@@ -1,10 +1,13 @@
 import os
+import shutil
+import threading
 from pathlib import Path
 
 import pyarrow.fs
 import pytest
 
 import ray
+from ray.air._internal.filelock import TempFileLock
 from ray.train._checkpoint import (
     _CHECKPOINT_TEMP_DIR_PREFIX,
     _METADATA_FILE_NAME,
@@ -188,6 +191,76 @@ def test_as_directory_download_error(checkpoint: Checkpoint, monkeypatch):
     with pytest.raises(RuntimeError, match=error_text):
         with checkpoint.as_directory() as _:
             pass
+
+
+def test_to_directory_after_concurrent_cleanup(checkpoint: Checkpoint):
+    """If another process deletes the shared temp checkpoint dir (i.e., its
+    `as_directory` context exited) while we wait on the lock, `to_directory`
+    should re-download the checkpoint rather than raise."""
+    if isinstance(checkpoint.filesystem, pyarrow.fs.LocalFileSystem):
+        pytest.skip("Local filesystem checkpoints don't download to a temp dir.")
+
+    temp_dir = checkpoint._get_temporary_checkpoint_dir()
+    os.makedirs(temp_dir, exist_ok=True)
+
+    lock_acquired = threading.Event()
+    release_lock = threading.Event()
+
+    def cleanup_temp_dir():
+        # Mirrors the `as_directory` cleanup of another reader.
+        with TempFileLock(temp_dir, timeout=0):
+            lock_acquired.set()
+            release_lock.wait()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    cleanup_thread = threading.Thread(target=cleanup_temp_dir)
+    cleanup_thread.start()
+    lock_acquired.wait()
+
+    # Release the lock once `to_directory` is blocked waiting on it.
+    threading.Timer(0.5, release_lock.set).start()
+    try:
+        checkpoint_path = Path(checkpoint.to_directory())
+    finally:
+        release_lock.set()
+        cleanup_thread.join()
+
+    assert checkpoint_path == Path(temp_dir)
+    assert (checkpoint_path / _CHECKPOINT_CONTENT_FILE).exists()
+
+
+def test_as_directory_cleanup_rechecks_del_locks(checkpoint: Checkpoint, monkeypatch):
+    """A reader that registers its deletion lock after another reader has
+    listed the existing locks, but before it deletes the directory, must not
+    have the directory deleted out from under it."""
+    if isinstance(checkpoint.filesystem, pyarrow.fs.LocalFileSystem):
+        pytest.skip("Local filesystem checkpoints don't download to a temp dir.")
+
+    import ray.train._checkpoint as checkpoint_module
+
+    other_reader_lock = _get_del_lock_path(
+        checkpoint._get_temporary_checkpoint_dir(), suffix="other_reader"
+    )
+    original_list_del_locks = checkpoint_module._list_existing_del_locks
+
+    def list_del_locks_then_new_reader_arrives(path):
+        locks = original_list_del_locks(path)
+        # Another reader registers itself right after this listing.
+        open(other_reader_lock, "a").close()
+        return locks
+
+    with checkpoint.as_directory() as checkpoint_dir:
+        monkeypatch.setattr(
+            checkpoint_module,
+            "_list_existing_del_locks",
+            list_del_locks_then_new_reader_arrives,
+        )
+
+    try:
+        assert (Path(checkpoint_dir) / _CHECKPOINT_CONTENT_FILE).exists()
+    finally:
+        os.remove(other_reader_lock)
+        shutil.rmtree(checkpoint_dir, ignore_errors=True)
 
 
 def test_metadata(checkpoint: Checkpoint):
